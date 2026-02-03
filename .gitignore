@@ -1,0 +1,12 @@
+# Local venv (Makefile install creates .venv)
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Env (use .env.example only)
+.env

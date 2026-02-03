@@ -84,3 +84,27 @@ async def test_phase_1_creates_artifacts(tmp_path: Path) -> None:
         assert "## Unknowns (To Verify)" in assumptions
     finally:
         os.chdir(original_cwd)
+
+
+@pytest.mark.asyncio
+async def test_phase_to_phase_transition() -> None:
+    """Approving Phase 1 triggers Phase 2 interrupt."""
+    from langgraph.checkpoint.memory import InMemorySaver
+    from langgraph.types import Command
+
+    checkpointer = InMemorySaver()
+    graph = build_workflow(checkpointer)
+
+    config = {"configurable": {"thread_id": "test-transition"}}
+    initial: PhaseState = {"messages": [], "current_phase": 0, "approved": False}
+
+    # Phase 1 interrupts
+    result1 = await graph.ainvoke(initial, config=config)
+    assert "__interrupt__" in result1
+    assert result1["__interrupt__"][0].value.get("phase") == 1
+
+    # Resume with approval -> Phase 2 should interrupt
+    result2 = await graph.ainvoke(Command(resume={"approved": True}), config=config)
+    assert "__interrupt__" in result2
+    assert result2["__interrupt__"][0].value.get("phase") == 2
+    assert "Phase 2" in result2["__interrupt__"][0].value.get("message", "")

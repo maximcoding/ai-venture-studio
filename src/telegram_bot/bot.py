@@ -90,10 +90,20 @@ async def handle_approve(callback: CallbackQuery) -> None:
 
     from langgraph.types import Command
 
-    await _graph.ainvoke(Command(resume={"approved": True}), run_config)
+    # Resume and check if next phase interrupted
+    result = await _graph.ainvoke(Command(resume={"approved": True}), run_config)
     await callback.answer("Approved. Pipeline continued.")
     if callback.message:
         await callback.message.edit_text(f"Phase {phase} approved. Pipeline continued.")
+    
+    # Check if the next phase also interrupted (phase-to-phase transition)
+    if "__interrupt__" in result and result["__interrupt__"]:
+        inter = result["__interrupt__"][0]
+        payload = getattr(inter, "value", inter) or {}
+        next_phase = payload.get("phase", int(phase) + 1)
+        msg_text = payload.get("message", "Approve to continue.")
+        if callback.message:
+            await callback.message.answer(msg_text, reply_markup=_approval_keyboard(next_phase))
 
 
 @router.callback_query(F.data.startswith(GO_BACK))

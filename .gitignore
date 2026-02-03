@@ -4,9 +4,17 @@
 # Python
 __pycache__/
 *.py[cod]
+*.egg-info/
 .pytest_cache/
 .coverage
 htmlcov/
 
 # Env (use .env.example only)
 .env
+
+# IDE
+.cursor/
+.vscode/
+
+# OS
+.DS_Store

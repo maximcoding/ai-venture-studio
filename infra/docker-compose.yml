@@ -13,6 +13,8 @@ services:
       - PG_CONNECTION_STRING=postgresql://venture:venture@postgres:5432/venture_studio
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
     restart: unless-stopped
+    volumes:
+      - ../artifacts:/app/artifacts
     networks:
       - studio
 

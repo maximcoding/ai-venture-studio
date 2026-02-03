@@ -125,7 +125,7 @@ def phase_1(state: PhaseState, config: RunnableConfig) -> dict[str, Any]:
             "phase": 1,
             "phase_name": "visionary_business_audit",
             "message": f"Phase 1 complete. Artifacts created at artifacts/{thread_id}/docs/\n\n"
-            "✅ Business_Logic.md\n✅ Assumptions.md\n\n"
+            "✅ `Business_Logic.md`\n✅ `Assumptions.md`\n\n"
             "Approve to continue to Phase 2.",
         }
     )

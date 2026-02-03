@@ -95,7 +95,7 @@ async def handle_approve(callback: CallbackQuery) -> None:
     await callback.answer("Approved. Pipeline continued.")
     if callback.message:
         await callback.message.edit_text(f"Phase {phase} approved. Pipeline continued.")
-    
+
     # Check if the next phase also interrupted (phase-to-phase transition)
     if "__interrupt__" in result and result["__interrupt__"]:
         inter = result["__interrupt__"][0]

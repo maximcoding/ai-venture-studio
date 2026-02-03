@@ -199,3 +199,32 @@ On rollback to Phase X:
 3) Apply CEO edits to `artifacts/<thread_id>/docs/` (per-run SSOT)
 4) Recompute downstream phases (X+1..10)
 5) Re-run validations before allowing re-approval
+
+---
+
+## Docker & Volume Best Practices
+
+**CRITICAL for artifact persistence:**
+- Any directory where phases write outputs MUST be volume-mounted in docker-compose.yml
+- Without volume mounts, files exist only inside the container and vanish on rebuild/restart
+
+**Required volume mounts:**
+```yaml
+services:
+  app:
+    volumes:
+      - ../artifacts:/app/artifacts    # Phase outputs (MUST persist on host)
+      - ../docs:/app/docs              # Optional: if phases auto-update docs
+```
+
+**Verification after Phase 1:**
+```bash
+# Should show files on HOST filesystem, not just in container
+ls artifacts/user_<telegram_id>/docs/
+```
+
+**Common Docker issues:**
+1. **Missing .env file** → Bot won't start (no TELEGRAM_BOT_TOKEN)
+2. **No volume mount** → Artifacts disappear on container restart  
+3. **Stale image cache** → Code changes not reflected (run `make boot` or rebuild with `--no-cache`)
+4. **Port conflicts** → Postgres 5432 already in use (change port in docker-compose.yml)

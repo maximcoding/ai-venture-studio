@@ -19,6 +19,7 @@ If <90% fit:
 - Repo created with baseline structure: `/docs`, `/src`, `/tests`, `/infra`, `/artifacts`, `/refs`
 - `/docs` synced with Phase 1–4 artifacts
 - Docker runtime (compose) boots core services
+- **CRITICAL:** `artifacts/` volume-mounted in docker-compose.yml (host persistence)
 - CI skeleton runs lint + tests
 - `.env.example` exists
 
@@ -45,9 +46,21 @@ If <90% fit:
 ### DoD Checklist (Approval Gate)
 - [x] Starter repo decision recorded in `docs/Foundation_Template.md`
 - [x] Project boots locally (compose up / local run)
+- [x] **artifacts/ folder is volume-mounted** (verify: run phase, check host filesystem)
 - [x] CI pipeline exists and runs baseline checks
 - [x] `/docs` is complete and current
 - [x] `.env.example` is safe (no secrets)
+
+### Common Pitfalls (Phase 5)
+**Symptom:** Phase 1 artifacts appear in Telegram but not on host filesystem  
+**Cause:** Missing volume mount in docker-compose.yml  
+**Fix:** Add `volumes: - ../artifacts:/app/artifacts` to app service  
+**Verification:** `ls artifacts/user_<telegram_id>/docs/` should show files on host
+
+**Symptom:** Bot doesn't start or shows "TELEGRAM_BOT_TOKEN not set"  
+**Cause:** Missing `.env` file or docker-compose not reading it  
+**Fix:** Create `.env` in repo root, ensure Makefile uses `--env-file .env`  
+**Verification:** `docker compose config` shows resolved TELEGRAM_BOT_TOKEN
 
 ### Telegram Completion Message (Template)
 - ✅ Artifacts: Foundation_Template.md + repo tree snapshot

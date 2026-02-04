@@ -35,17 +35,28 @@ async def _send_artifact_files(message: Message, file_paths: list[str]) -> None:
                 await message.answer(f"⚠️ Could not send file: {path.name}")
 
 
-def _approval_keyboard(phase: int) -> InlineKeyboardMarkup:
+def _approval_keyboard(phase: int, artifact_files: list[str] | None = None) -> InlineKeyboardMarkup:
     """Inline buttons for phase approval (per PHASES_INDEX)."""
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(text="✅ APPROVE", callback_data=f"{APPROVE}:{phase}"),
-                InlineKeyboardButton(text="📄 VIEW DOCS", callback_data=f"{VIEW_DOCS}:{phase}"),
-            ],
-            [InlineKeyboardButton(text="🔙 GO BACK", callback_data=f"{GO_BACK}:{phase}")],
-        ]
-    )
+    keyboard = []
+    
+    # Add file buttons first (one per row)
+    if artifact_files:
+        for file_path in artifact_files:
+            file_name = Path(file_path).name
+            keyboard.append([
+                InlineKeyboardButton(text=f"📄 {file_name}", callback_data=f"file:{file_path}")
+            ])
+    
+    # Add approval buttons
+    keyboard.extend([
+        [
+            InlineKeyboardButton(text="✅ APPROVE", callback_data=f"{APPROVE}:{phase}"),
+            InlineKeyboardButton(text="📄 VIEW DOCS", callback_data=f"{VIEW_DOCS}:{phase}"),
+        ],
+        [InlineKeyboardButton(text="🔙 GO BACK", callback_data=f"{GO_BACK}:{phase}")],
+    ])
+    
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
 @router.message(Command("start"))
@@ -90,7 +101,7 @@ async def cmd_run(message: Message) -> None:
             await _send_artifact_files(message, artifact_files)
             
             # Then send message with approval buttons
-            await message.answer(msg_text, reply_markup=_approval_keyboard(phase))
+            await message.answer(msg_text, reply_markup=_approval_keyboard(phase, artifact_files))
         else:
             await message.answer("Pipeline step completed (no interrupt).")
     except Exception as e:
@@ -129,7 +140,7 @@ async def handle_approve(callback: CallbackQuery) -> None:
             await _send_artifact_files(callback.message, artifact_files)
             
             # Then send message with approval buttons
-            await callback.message.answer(msg_text, reply_markup=_approval_keyboard(next_phase))
+            await callback.message.answer(msg_text, reply_markup=_approval_keyboard(next_phase, artifact_files))
 
 
 @router.callback_query(F.data.startswith(GO_BACK))
@@ -150,6 +161,29 @@ async def handle_view_docs(callback: CallbackQuery) -> None:
             "Factory manuals (PHASE_*.md) are in /docs.",
             parse_mode="HTML",
         )
+
+
+@router.callback_query(F.data.startswith("file:"))
+async def handle_file_button(callback: CallbackQuery) -> None:
+    """Resend artifact file when user clicks file button."""
+    if not callback.data or not callback.message:
+        await callback.answer("⚠️ No file path provided.")
+        return
+    
+    # Parse file path from callback data (format: "file:/path/to/file.md")
+    file_path = callback.data[5:]  # Remove "file:" prefix
+    path = Path(file_path)
+    
+    if path.exists() and path.is_file():
+        try:
+            document = FSInputFile(file_path)
+            await callback.message.answer_document(document)
+            await callback.answer("✅ File sent")
+        except Exception as e:
+            logger.warning("failed_to_resend_file", extra={"file": file_path, "error": str(e)})
+            await callback.answer(f"⚠️ Could not send {path.name}", show_alert=True)
+    else:
+        await callback.answer(f"⚠️ File not found: {path.name}", show_alert=True)
 
 
 async def run_bot(

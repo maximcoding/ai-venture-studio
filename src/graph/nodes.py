@@ -51,10 +51,10 @@ def phase_node(phase_num: int):
 
 
 def phase_1(state: PhaseState, config: RunnableConfig) -> dict[str, Any]:
-    """Phase 1 — Visionary & Business Audit. AI-powered analysis of CEO idea."""
+    """Phase 1 — Visionary & Business Audit. AI-powered analysis using Ollama."""
     from pathlib import Path
 
-    import anthropic
+    import requests
 
     from src.core.config import config as app_config
 
@@ -68,9 +68,6 @@ def phase_1(state: PhaseState, config: RunnableConfig) -> dict[str, Any]:
 
     artifacts_dir = Path(f"artifacts/{thread_id}/docs")
     artifacts_dir.mkdir(parents=True, exist_ok=True)
-
-    # Initialize Anthropic client
-    client = anthropic.Anthropic(api_key=app_config.ANTHROPIC_API_KEY)
 
     # Create analysis prompt
     analysis_prompt = f"""You are a startup advisor conducting Phase 1 business analysis.
@@ -105,18 +102,23 @@ Output format: Return TWO markdown documents separated by "---DOCUMENT_SEPARATOR
 First document: Business_Logic.md content
 Second document: Assumptions.md content"""
 
-    logger.info("phase_1_calling_claude", extra={"thread_id": thread_id})
+    logger.info("phase_1_calling_ollama", extra={"thread_id": thread_id, "model": app_config.OLLAMA_MODEL})
 
-    # Call Claude API
+    # Call Ollama API
     try:
-        response = client.messages.create(
-            model=app_config.ANTHROPIC_MODEL,
-            max_tokens=app_config.ANTHROPIC_MAX_TOKENS,
-            messages=[{"role": "user", "content": analysis_prompt}],
+        response = requests.post(
+            f"{app_config.OLLAMA_BASE_URL}/api/chat",
+            json={
+                "model": app_config.OLLAMA_MODEL,
+                "messages": [{"role": "user", "content": analysis_prompt}],
+                "stream": False,
+            },
+            timeout=app_config.OLLAMA_TIMEOUT,
         )
+        response.raise_for_status()
         
-        # Extract content from response
-        analysis_text = response.content[0].text
+        # Extract content from Ollama response
+        analysis_text = response.json()["message"]["content"]
         
         # Split into two documents
         if "---DOCUMENT_SEPARATOR---" in analysis_text:

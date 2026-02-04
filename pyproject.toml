@@ -14,12 +14,12 @@ readme = "docs/PHASES_INDEX.md"
 requires-python = ">=3.11"
 dependencies = [
     "aiogram>=3.13.0",
-    "anthropic>=0.40.0",
     "langgraph>=0.2.0",
     "langgraph-checkpoint-postgres>=3.0.0",
     "langchain-core>=0.3.0",
     "psycopg[binary,pool]>=3.2.0",
     "python-dotenv>=1.0.0",
+    "requests>=2.31.0",
 ]
 
 [project.optional-dependencies]

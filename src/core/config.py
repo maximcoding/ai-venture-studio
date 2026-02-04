@@ -19,10 +19,10 @@ class Config:
     # Telegram
     TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
 
-    # Anthropic Claude
-    ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
-    ANTHROPIC_MODEL: str = os.getenv("ANTHROPIC_MODEL", "claude-3-5-sonnet-20241022")
-    ANTHROPIC_MAX_TOKENS: int = int(os.getenv("ANTHROPIC_MAX_TOKENS", "4096"))
+    # Ollama (local LLM)
+    OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
+    OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
+    OLLAMA_TIMEOUT: int = int(os.getenv("OLLAMA_TIMEOUT", "120"))
 
     @classmethod
     def validate(cls) -> None:
@@ -32,8 +32,7 @@ class Config:
             errors.append("PG_CONNECTION_STRING not set")
         if not cls.TELEGRAM_BOT_TOKEN:
             errors.append("TELEGRAM_BOT_TOKEN not set")
-        if not cls.ANTHROPIC_API_KEY:
-            errors.append("ANTHROPIC_API_KEY not set (required for Phase 1+)")
+        # Ollama doesn't require API key, just URL
         
         if errors:
             raise ValueError(f"Configuration errors: {', '.join(errors)}")

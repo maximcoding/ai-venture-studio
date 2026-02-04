@@ -37,11 +37,11 @@ async def test_build_workflow_with_memory_saver(monkeypatch: pytest.MonkeyPatch)
 
     from langgraph.checkpoint.memory import InMemorySaver
 
-    # Mock Anthropic API
+    # Mock Ollama API
     mock_response = MagicMock()
-    mock_response.content = [
-        MagicMock(
-            text="""# Business Logic
+    mock_response.json.return_value = {
+        "message": {
+            "content": """# Business Logic
 
 ## Core Concept
 Test business idea
@@ -83,12 +83,12 @@ Test compliance
 
 ## Market Assumptions
 - Test market assumption"""
-        )
-    ]
-
-    mock_client = MagicMock()
-    mock_client.messages.create.return_value = mock_response
-    monkeypatch.setattr("anthropic.Anthropic", lambda api_key: mock_client)
+        }
+    }
+    mock_response.raise_for_status = MagicMock()
+    
+    mock_post = MagicMock(return_value=mock_response)
+    monkeypatch.setattr("requests.post", mock_post)
 
     checkpointer = InMemorySaver()
     graph = build_workflow(checkpointer)
@@ -116,11 +116,11 @@ async def test_phase_1_creates_artifacts(tmp_path: Path, monkeypatch: pytest.Mon
 
     from langgraph.checkpoint.memory import InMemorySaver
 
-    # Mock Anthropic API
+    # Mock Ollama API
     mock_response = MagicMock()
-    mock_response.content = [
-        MagicMock(
-            text="""# Business Logic
+    mock_response.json.return_value = {
+        "message": {
+            "content": """# Business Logic
 
 ## Core Concept
 A SaaS invoice management platform for freelancers
@@ -169,12 +169,12 @@ GDPR-compliant data storage, encrypted payment info, SOC 2 Type II certification
 ## Market Assumptions
 - Target market: 5M+ freelancers in US/EU
 - 20% actively seeking better invoicing tools"""
-        )
-    ]
-
-    mock_client = MagicMock()
-    mock_client.messages.create.return_value = mock_response
-    monkeypatch.setattr("anthropic.Anthropic", lambda api_key: mock_client)
+        }
+    }
+    mock_response.raise_for_status = MagicMock()
+    
+    mock_post = MagicMock(return_value=mock_response)
+    monkeypatch.setattr("requests.post", mock_post)
 
     # Change to tmp directory for test isolation
     original_cwd = os.getcwd()
@@ -222,12 +222,15 @@ async def test_phase_to_phase_transition(monkeypatch: pytest.MonkeyPatch) -> Non
     from langgraph.checkpoint.memory import InMemorySaver
     from langgraph.types import Command
 
-    # Mock Anthropic API
+    # Mock Ollama API
     mock_response = MagicMock()
-    mock_response.content = [MagicMock(text="# Business Logic\nTest\n---DOCUMENT_SEPARATOR---\n# Assumptions\nTest")]
-    mock_client = MagicMock()
-    mock_client.messages.create.return_value = mock_response
-    monkeypatch.setattr("anthropic.Anthropic", lambda api_key: mock_client)
+    mock_response.json.return_value = {
+        "message": {"content": "# Business Logic\nTest\n---DOCUMENT_SEPARATOR---\n# Assumptions\nTest"}
+    }
+    mock_response.raise_for_status = MagicMock()
+    
+    mock_post = MagicMock(return_value=mock_response)
+    monkeypatch.setattr("requests.post", mock_post)
 
     checkpointer = InMemorySaver()
     graph = build_workflow(checkpointer)

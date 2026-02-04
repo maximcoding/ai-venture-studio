@@ -253,7 +253,7 @@ IMPORTANT: Separate each document with the exact marker:
 
 Order: Product_Backlog.md, then MVP_Scope.md, then Sprint_1_TODO.md"""
 
-    # Call Ollama
+    # Call Ollama (Phase 2 generates 3 documents - needs more time)
     try:
         response = requests.post(
             f"{app_config.OLLAMA_BASE_URL}/api/chat",
@@ -262,7 +262,7 @@ Order: Product_Backlog.md, then MVP_Scope.md, then Sprint_1_TODO.md"""
                 "messages": [{"role": "user", "content": analysis_prompt}],
                 "stream": False,
             },
-            timeout=app_config.OLLAMA_TIMEOUT,
+            timeout=180,  # 3 minutes for Phase 2 (generates 3 documents)
         )
         response.raise_for_status()
         result = response.json()
@@ -273,13 +273,39 @@ Order: Product_Backlog.md, then MVP_Scope.md, then Sprint_1_TODO.md"""
 
     # Parse the 3 documents
     try:
-        parts = full_text.split("---DOCUMENT_SEPARATOR---")
-        if len(parts) < 3:
-            raise ValueError(f"Expected 3 documents, got {len(parts)}")
-        
-        backlog = parts[0].strip()
-        mvp_scope = parts[1].strip()
-        sprint_todo = parts[2].strip()
+        # Try primary separator first
+        if "---DOCUMENT_SEPARATOR---" in full_text:
+            parts = full_text.split("---DOCUMENT_SEPARATOR---")
+            if len(parts) >= 3:
+                backlog = parts[0].strip()
+                mvp_scope = parts[1].strip()
+                sprint_todo = parts[2].strip()
+            else:
+                logger.warning(
+                    "phase_2_insufficient_separators",
+                    extra={"thread_id": thread_id, "parts_count": len(parts)},
+                )
+                # Fallback: use whatever we have
+                backlog = parts[0].strip() if len(parts) > 0 else full_text
+                mvp_scope = parts[1].strip() if len(parts) > 1 else "# MVP Scope\n\nGeneration incomplete."
+                sprint_todo = parts[2].strip() if len(parts) > 2 else "# Sprint 1 TODO\n\nGeneration incomplete."
+        else:
+            # Fallback: try to split by markdown headers
+            logger.warning(
+                "phase_2_no_separator_found",
+                extra={"thread_id": thread_id, "text_length": len(full_text)},
+            )
+            
+            # Try to extract by detecting section headers
+            import re
+            # Look for "# Product Backlog", "# MVP Scope", "# Sprint"
+            backlog_match = re.search(r"#+ Product[_ ]?Backlog[\s\S]*?(?=(?:#+ MVP|$))", full_text, re.IGNORECASE)
+            mvp_match = re.search(r"#+ MVP[_ ]?Scope[\s\S]*?(?=(?:#+ Sprint|$))", full_text, re.IGNORECASE)
+            sprint_match = re.search(r"#+ Sprint[_ ]?1[_ ]?TODO[\s\S]*", full_text, re.IGNORECASE)
+            
+            backlog = backlog_match.group(0).strip() if backlog_match else f"# Product Backlog\n\n{full_text}"
+            mvp_scope = mvp_match.group(0).strip() if mvp_match else "# MVP Scope\n\nGeneration incomplete."
+            sprint_todo = sprint_match.group(0).strip() if sprint_match else "# Sprint 1 TODO\n\nGeneration incomplete."
 
         # Write artifacts
         (artifacts_dir / "Product_Backlog.md").write_text(backlog, encoding="utf-8")

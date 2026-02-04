@@ -1,75 +1,38 @@
 Here are the three documents as requested:
 
 **Product_Backlog.md**
-
-# Product Backlog
-
+```
 ## User Personas
-We have two primary user personas:
-
-* **Freelancer**: A self-employed professional who works on a project-by-project basis and manages multiple clients.
-	+ Goals:
-		- Create and send invoices quickly and efficiently
-		- Track client payments and cash flow
-		- Manage multiple projects and clients simultaneously
-	+ Pain Points:
-		- Inefficient invoicing process leads to missed or delayed payments
-		- Difficulty tracking client interactions and project progress
-
-* **Business Owner**: A small business owner who hires freelancers to work on specific projects.
-	+ Goals:
-		- Find reliable and skilled freelancers for projects
-		- Streamline invoicing and payment processes
-		- Monitor project progress and client satisfaction
-	+ Pain Points:
-		- Difficulty finding trustworthy freelancers
-		- Inefficient communication and payment processes
+### Primary Persona: Sarah
+As a busy professional, I want to have healthy and delicious meals planned for me, so that I can save time and focus on work.
+### Secondary Persona: Mark
+As a home cook, I want to be able to plan meals that fit my family's dietary needs, so that we can enjoy nutritious meals together.
 
 ## User Stories
-Here are some user stories based on the personas:
 
-### Freelancer Persona
-
-1. **Story 1**: As a freelancer, I want to create invoices quickly and easily, so that I can focus on completing projects.
+### P1 - Plan Meals for Busy Professionals
+* As Sarah, I want to see a personalized meal plan for the week, so that I can save time on planning and grocery shopping.
 	+ Acceptance Criteria:
-		- Create invoice templates for common clients or services
-		- Ability to track client payments and cash flow in real-time
-		- Simplified process for sending reminders and notifications
-	+ Priority: P1
-
-2. **Story 2**: As a freelancer, I want to manage multiple projects and clients simultaneously, so that I can optimize my workload.
+		- Meal plan includes 3 main courses, 2 side dishes, and 2 snacks per day.
+		- Meals are tailored to user's dietary needs (e.g. gluten-free, vegan).
+		- Plan is generated based on user's preferences (e.g. cuisine type, ingredient availability).
+* As Sarah, I want to be able to adjust the meal plan as needed, so that I can accommodate changes in my schedule or ingredients.
 	+ Acceptance Criteria:
-		- Ability to create separate projects with unique client lists
-		- Access to real-time project progress tracking and notifications
-		- Customizable dashboard for displaying relevant information
-	+ Priority: P1
+		- User can swap out meals for new ones.
+		- Changes are reflected in the meal plan and grocery list.
 
-3. **Story 3**: As a freelancer, I want secure payment processing, so that I can trust the platform.
+### P1 - Social Sharing Features
+* As Sarah, I want to be able to share my favorite recipes with friends on social media, so that we can inspire each other to cook at home more often.
 	+ Acceptance Criteria:
-		- Integration with popular payment gateways (e.g., Stripe, PayPal)
-		- Robust security measures for protecting sensitive client data
-		- Transparent and up-to-date information on transaction status
-	+ Priority: P1
+		- User can select a recipe to share via social media platforms (e.g. Facebook, Instagram).
+		- Shared content includes a photo of the dish, recipe title, and brief description.
 
-### Business Owner Persona
-
-1. **Story 4**: As a business owner, I want to find reliable freelancers with the right skills, so that I can complete projects efficiently.
+### P2 - Integration with Grocery Delivery Services
+* As Sarah, I want to be able to order ingredients directly from my preferred grocery store, so that I can save time on grocery shopping.
 	+ Acceptance Criteria:
-		- Ability to post job descriptions and requirements
-		- Filtering options for finding suitable freelancers (e.g., skill level, experience)
-		- Secure messaging system for communicating with potential freelancers
-	+ Priority: P1
+		- User can select their preferred grocery delivery service (e.g. Instacart, Shipt).
+		- Ingredients for the meal plan are added to the user's online grocery cart.
 
-2. **Story 5**: As a business owner, I want streamlined invoicing and payment processes, so that I can reduce administrative tasks.
-	+ Acceptance Criteria:
-		- Integration with existing accounting software (e.g., QuickBooks, Xero)
-		- Automated reminders and notifications for upcoming payments
-		- Secure online payment processing for client invoices
-	+ Priority: P1
-
-## Dependencies between Stories
-
-* **Story 2** depends on **Story 1**, as the simplified invoicing process enables project management.
-* **Story 5** depends on **Story 3**, as secure payment processing is crucial for business owners.
-
----
+## Dependencies
+* P1 - Plan Meals for Busy Professionals depends on P2 - Integration with Grocery Delivery Services.
+* P1 - Social Sharing Features depends on P2 - Integration with Grocery Delivery Services (for recipe sharing).

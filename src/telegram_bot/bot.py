@@ -255,7 +255,11 @@ async def cmd_run(message: Message) -> None:
             await _send_artifact_files(message, artifact_files)
             
             # Then send message with approval buttons
-            await message.answer(msg_text, reply_markup=_approval_keyboard(phase, artifact_files))
+            await message.answer(
+                msg_text, 
+                reply_markup=_approval_keyboard(phase, artifact_files),
+                parse_mode=ParseMode.HTML
+            )
         else:
             await message.answer("Pipeline step completed (no interrupt).")
     except Exception as e:
@@ -311,7 +315,11 @@ async def handle_approve(callback: CallbackQuery) -> None:
             await _send_artifact_files(callback.message, artifact_files)
             
             # Then send message with approval buttons
-            await callback.message.answer(msg_text, reply_markup=_approval_keyboard(next_phase, artifact_files))
+            await callback.message.answer(
+                msg_text, 
+                reply_markup=_approval_keyboard(next_phase, artifact_files),
+                parse_mode=ParseMode.HTML
+            )
 
 
 @router.callback_query(F.data.startswith(GO_BACK))

@@ -1,20 +1,37 @@
 {
-  "high_level_concept": "A platform for freelancers to manage projects and clients efficiently",
-  "vibe_adjectives": "modern and user-friendly",
+  "high_level_concept": "An app for busy professionals to plan healthy and delicious meals",
+  "vibe_adjectives": "modern, user-friendly, clean, intuitive",
   "target_audience": [
-    {
-      "name": "Freelancer",
-      "description": "Self-employed professionals managing multiple clients"
-    },
-    {
-      "name": "Business Owner",
-      "description": "Small business owners hiring freelancers for projects"
-    }
+    "Sarah: busy professional",
+    "Mark: home cook"
   ],
-  "color_mood": "energetic and inviting",
-  "font_style": "clean sans-serif (Montserrat)",
-  "border_style": "fully rounded corners",
-  "image_style": "bright product photos, lifestyle imagery",
+  "color_mood": {
+    "primary_color": "#4A90E2",
+    "accent_color": "#FFD700"
+  },
+  "font_style": {
+    "family_name": "Montserrat",
+    "sizes": [
+      16,
+      18,
+      20
+    ]
+  },
+  "border_style": {
+    "radius": [
+      "8px",
+      "12px"
+    ],
+    "style": "solid"
+  },
+  "image_style": {
+    "src_size": [
+      "800x600",
+      "1024x768"
+    ],
+    "background_color": "#F7F7F7",
+    "blending_mode": "multiply"
+  },
   "screens": [
     {
       "name": "Login",
@@ -22,10 +39,13 @@
       "components": [
         "email input",
         "password input",
-        "primary CTA button",
+        "primary CTA button (Sign In)",
         "social login options"
       ],
-      "cta": "Sign In button (large, primary color, fully rounded)",
+      "cta": {
+        "text": "Sign In",
+        "color": "#4A90E2"
+      },
       "states": [
         "idle",
         "loading",
@@ -34,46 +54,19 @@
       ]
     },
     {
-      "name": "Dashboard",
-      "purpose": "Freelancer project management and tracking",
+      "name": "Meal Plan",
+      "purpose": "View meal plan for the week",
       "components": [
-        "project list",
-        "new project button",
-        "client list"
+        "meal plan header",
+        "day-of-the-week cards",
+        "search bar"
       ],
-      "cta": "New Project button (medium, primary color)",
+      "cta": {
+        "text": "Update Meal Plan",
+        "color": "#FFD700"
+      },
       "states": [
-        "idle",
-        "loading",
-        "error"
-      ]
-    },
-    {
-      "name": "Invoicing",
-      "purpose": "Freelancer invoicing and payment tracking",
-      "components": [
-        "invoice template selection",
-        "client list"
-      ],
-      "cta": "Create Invoice button (medium, primary color)",
-      "states": [
-        "idle",
-        "loading",
-        "error"
-      ]
-    },
-    {
-      "name": "Client List",
-      "purpose": "Business Owner client management and tracking",
-      "components": [
-        "client list",
-        "new client button"
-      ],
-      "cta": "New Client button (medium, primary color)",
-      "states": [
-        "idle",
-        "loading",
-        "error"
+        "idle"
       ]
     }
   ]

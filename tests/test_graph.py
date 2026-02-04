@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -346,11 +347,15 @@ async def test_phase_2_creates_artifacts(tmp_path: Path, monkeypatch: pytest.Mon
 
 @pytest.mark.asyncio
 async def test_phase_3_creates_artifacts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Phase 3 reads Phase 2 artifacts and creates 4 Phase 3 design artifacts."""
+    """Phase 3 reads Phase 2 artifacts and creates design artifacts (Stitch disabled fallback)."""
     from unittest.mock import MagicMock
 
     from langgraph.checkpoint.memory import InMemorySaver
     from langgraph.types import Command
+
+    # Disable Stitch for this test (fallback mode)
+    from src.core.config import config as app_config
+    monkeypatch.setattr(app_config, "GOOGLE_STITCH_ENABLED", False)
 
     # Setup Phase 1 and Phase 2 artifacts manually
     artifacts_dir = tmp_path / "artifacts" / "test-user-phase3" / "docs"
@@ -370,7 +375,30 @@ async def test_phase_3_creates_artifacts(tmp_path: Path, monkeypatch: pytest.Mon
     }
     phase3_response = {
         "message": {
-            "content": """# Design System
+            "content": """```json
+{
+  "high_level_concept": "An app for test users",
+  "vibe_adjectives": "modern and clean",
+  "target_audience": "test users",
+  "color_mood": "professional",
+  "font_style": "sans-serif",
+  "border_style": "rounded",
+  "image_style": "minimalist",
+  "screens": [
+    {
+      "name": "Login",
+      "purpose": "Authentication",
+      "components": ["email input", "password input", "login button"],
+      "cta": "Sign In",
+      "states": ["idle", "loading"]
+    }
+  ]
+}
+```
+
+---DOCUMENT_SEPARATOR---
+
+# Design System
 
 ## Brand Identity
 Modern SaaS Design
@@ -439,23 +467,12 @@ Modern SaaS Design
 
 ---DOCUMENT_SEPARATOR---
 
-# Prototype Link
+# Stitch Refinement Guide
 
-## Design Tool: Figma
-
-## Screens to Prototype
-1. Login flow
-2. Dashboard navigation
-3. Primary feature interaction
-
-## Link
-[TO BE CREATED IN FIGMA]
-
-## Instructions
-Create interactive prototype in Figma with:
-- Click-through flows
-- Hover states
-- Micro-interactions"""
+Common refinement prompts:
+- On homepage, add search bar
+- Change button to larger size
+- Update theme to warm colors"""
         }
     }
 
@@ -507,17 +524,24 @@ Create interactive prototype in Figma with:
         assert result3["__interrupt__"][0].value.get("phase") == 3
 
         # Check Phase 3 artifacts were created
+        assert (artifacts_dir / "Design_Strategy.json").exists()
         assert (artifacts_dir / "Design_System.md").exists()
         assert (artifacts_dir / "Design_Tokens.json").exists()
         assert (artifacts_dir / "UI_Screens_List.md").exists()
         assert (artifacts_dir / "Prototype_Link.md").exists()
+
+        # Check Design_Strategy.json is valid JSON with required fields
+        import json
+        strategy = json.loads((artifacts_dir / "Design_Strategy.json").read_text())
+        assert "high_level_concept" in strategy
+        assert "vibe_adjectives" in strategy
+        assert "screens" in strategy
 
         # Check content
         design_system = (artifacts_dir / "Design_System.md").read_text()
         assert "Design System" in design_system or "Brand" in design_system
 
         # Check Design_Tokens.json is valid JSON
-        import json
         tokens = json.loads((artifacts_dir / "Design_Tokens.json").read_text())
         assert "colors" in tokens
         assert "typography" in tokens or "spacing" in tokens
@@ -525,8 +549,143 @@ Create interactive prototype in Figma with:
         screens = (artifacts_dir / "UI_Screens_List.md").read_text()
         assert "Screen" in screens or "Login" in screens or "Dashboard" in screens
 
+        # Check Prototype_Link.md (should be fallback mode since Stitch disabled)
         prototype = (artifacts_dir / "Prototype_Link.md").read_text()
-        assert "Prototype" in prototype or "Figma" in prototype or "FIGMA" in prototype
+        assert "Prototype" in prototype or "Manual" in prototype
+    finally:
+        os.chdir(original_cwd)
+
+
+@pytest.mark.asyncio
+async def test_phase_3_with_stitch_enabled(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Phase 3 with Stitch integration creates visual prototypes and screenshots."""
+    from unittest.mock import MagicMock
+
+    from langgraph.checkpoint.memory import InMemorySaver
+    from langgraph.types import Command
+
+    # Enable Stitch for this test by patching config
+    from src.core.config import config as app_config
+    monkeypatch.setattr(app_config, "GOOGLE_STITCH_ENABLED", True)
+    monkeypatch.setattr(app_config, "GOOGLE_STITCH_API_KEY", "test_api_key")
+
+    # Setup Phase 1 and Phase 2 artifacts manually
+    artifacts_dir = tmp_path / "artifacts" / "test-stitch-user" / "docs"
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+    (artifacts_dir / "Business_Logic.md").write_text("# Business Logic\n\nTest")
+    (artifacts_dir / "Assumptions.md").write_text("# Assumptions\n\nTest")
+    (artifacts_dir / "Product_Backlog.md").write_text("# Product Backlog\n\nUser stories")
+    (artifacts_dir / "MVP_Scope.md").write_text("# MVP Scope\n\nIN SCOPE: Features")
+    (artifacts_dir / "Sprint_1_TODO.md").write_text("# Sprint 1\n\nTasks")
+
+    # Mock Ollama API
+    phase1_response = {"message": {"content": "# Business Logic\nTest\n---DOCUMENT_SEPARATOR---\n# Assumptions\nTest"}}
+    phase2_response = {
+        "message": {"content": "# Product Backlog\nTest\n---DOCUMENT_SEPARATOR---\n# MVP Scope\nTest\n---DOCUMENT_SEPARATOR---\n# Sprint 1\nTest"}
+    }
+    phase3_response = {
+        "message": {
+            "content": """```json
+{
+  "high_level_concept": "An app for testing Stitch",
+  "vibe_adjectives": "modern and vibrant",
+  "screens": [{"name": "Login", "purpose": "Auth", "components": ["email input"], "cta": "Sign In", "states": ["idle"]}]
+}
+```
+---DOCUMENT_SEPARATOR---
+# Design System
+Test design system
+---DOCUMENT_SEPARATOR---
+```json
+{"colors": {"primary": "#0066CC"}, "typography": {"base": "16px"}}
+```
+---DOCUMENT_SEPARATOR---
+# UI Screens
+Test screens
+---DOCUMENT_SEPARATOR---
+# Refinement Guide
+Test refinements"""
+        }
+    }
+
+    ollama_call_count = 0
+    def mock_ollama_post(*args, **kwargs):
+        nonlocal ollama_call_count
+        ollama_call_count += 1
+        mock_response = MagicMock()
+        if ollama_call_count == 1:
+            mock_response.json.return_value = phase1_response
+        elif ollama_call_count == 2:
+            mock_response.json.return_value = phase2_response
+        else:
+            mock_response.json.return_value = phase3_response
+        mock_response.raise_for_status = MagicMock()
+        return mock_response
+
+    # Mock Stitch API create_design
+    from src.integrations.stitch_client import StitchClient
+
+    original_create = StitchClient.create_design
+    def mock_create_design(self, prompt: str, project_name: str | None = None) -> dict[str, Any]:
+        return {
+            "project_id": "stitch_test_123",
+            "preview_url": "https://stitch.google.com/preview/test_123",
+            "screenshots": ["https://stitch.google.com/screenshots/screen1.png"],
+            "figma_export_url": None,
+        }
+
+    # Mock Stitch API download_all_screenshots
+    original_download = StitchClient.download_all_screenshots
+    def mock_download_screenshots(self, screenshot_urls: list[str], save_dir: Path) -> list[Path]:
+        save_dir.mkdir(parents=True, exist_ok=True)
+        screenshot_path = save_dir / "screen_01.png"
+        screenshot_path.write_bytes(b"fake_png_data")
+        return [screenshot_path]
+
+    monkeypatch.setattr("requests.post", mock_ollama_post)
+    monkeypatch.setattr(StitchClient, "create_design", mock_create_design)
+    monkeypatch.setattr(StitchClient, "download_all_screenshots", mock_download_screenshots)
+
+    # Change to tmp directory
+    import os
+    original_cwd = os.getcwd()
+    os.chdir(tmp_path)
+
+    try:
+        checkpointer = InMemorySaver()
+        graph = build_workflow(checkpointer)
+
+        config = {"configurable": {"thread_id": "test-stitch-user"}}
+        initial: PhaseState = {
+            "messages": [],
+            "current_phase": 0,
+            "approved": False,
+            "ceo_prompt": "Build Stitch test app",
+        }
+
+        # Phase 1 -> Phase 2 -> Phase 3
+        result1 = await graph.ainvoke(initial, config=config)
+        result2 = await graph.ainvoke(Command(resume={"approved": True}), config=config)
+        result3 = await graph.ainvoke(Command(resume={"approved": True}), config=config)
+
+        assert result3["__interrupt__"][0].value.get("phase") == 3
+
+        # Check Phase 3 artifacts
+        assert (artifacts_dir / "Design_Strategy.json").exists()
+        assert (artifacts_dir / "Design_System.md").exists()
+        assert (artifacts_dir / "Stitch_Prompt.txt").exists()
+        assert (artifacts_dir / "Prototype_Link.md").exists()
+
+        # Check Stitch integration worked
+        prototype = (artifacts_dir / "Prototype_Link.md").read_text()
+        assert "stitch.google.com/preview/test_123" in prototype
+        assert "stitch_test_123" in prototype
+
+        # Check screenshot was downloaded
+        assets_dir = tmp_path / "artifacts" / "test-stitch-user" / "assets" / "ui"
+        assert (assets_dir / "screen_01.png").exists()
+
+        # Stitch integration successful (verified by artifacts above)
     finally:
         os.chdir(original_cwd)
 

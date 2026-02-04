@@ -87,13 +87,18 @@ _default_config: dict[str, Any] = {}
 
 
 async def _send_artifact_files(message: Message, file_paths: list[str]) -> None:
-    """Send artifact files as documents to the user."""
+    """Send artifact files as documents or photos to the user."""
     for file_path in file_paths:
         path = Path(file_path)
         if path.exists() and path.is_file():
             try:
-                document = FSInputFile(file_path)
-                await message.answer_document(document)
+                # Send images as photos, other files as documents
+                if path.suffix.lower() in [".png", ".jpg", ".jpeg", ".gif", ".webp"]:
+                    photo = FSInputFile(file_path)
+                    await message.answer_photo(photo, caption=path.name)
+                else:
+                    document = FSInputFile(file_path)
+                    await message.answer_document(document)
             except Exception as e:
                 logger.warning("failed_to_send_file", extra={"file": file_path, "error": str(e)})
                 await message.answer(f"⚠️ Could not send file: {path.name}")
@@ -103,22 +108,38 @@ def _approval_keyboard(phase: int, artifact_files: list[str] | None = None) -> I
     """Inline buttons for phase approval (per PHASES_INDEX)."""
     keyboard = []
     
-    # Add file buttons first (one per row)
+    # Add file buttons first (one per row) - only for non-image files
     if artifact_files:
         for file_path in artifact_files:
             file_name = Path(file_path).name
-            keyboard.append([
-                InlineKeyboardButton(text=f"📄 {file_name}", callback_data=f"file:{file_path}")
-            ])
+            # Skip images (they're sent as photos with caption)
+            if Path(file_path).suffix.lower() not in [".png", ".jpg", ".jpeg", ".gif", ".webp"]:
+                keyboard.append([
+                    InlineKeyboardButton(text=f"📄 {file_name}", callback_data=f"file:{file_path}")
+                ])
     
-    # Add approval buttons
-    keyboard.extend([
-        [
-            InlineKeyboardButton(text="✅ APPROVE", callback_data=f"{APPROVE}:{phase}"),
-            InlineKeyboardButton(text="📄 VIEW DOCS", callback_data=f"{VIEW_DOCS}:{phase}"),
-        ],
-        [InlineKeyboardButton(text="🔙 GO BACK", callback_data=f"{GO_BACK}:{phase}")],
-    ])
+    # Phase 3 specific buttons (Design Refinement)
+    if phase == 3:
+        keyboard.extend([
+            [
+                InlineKeyboardButton(text="✅ APPROVE DESIGN", callback_data=f"{APPROVE}:{phase}"),
+                InlineKeyboardButton(text="🔁 REFINE SCREEN", callback_data=f"refine_screen:{phase}"),
+            ],
+            [
+                InlineKeyboardButton(text="🎨 CHANGE THEME", callback_data=f"change_theme:{phase}"),
+                InlineKeyboardButton(text="📄 VIEW DOCS", callback_data=f"{VIEW_DOCS}:{phase}"),
+            ],
+            [InlineKeyboardButton(text="🔙 GO BACK", callback_data=f"{GO_BACK}:{phase}")],
+        ])
+    else:
+        # Standard approval buttons for other phases
+        keyboard.extend([
+            [
+                InlineKeyboardButton(text="✅ APPROVE", callback_data=f"{APPROVE}:{phase}"),
+                InlineKeyboardButton(text="📄 VIEW DOCS", callback_data=f"{VIEW_DOCS}:{phase}"),
+            ],
+            [InlineKeyboardButton(text="🔙 GO BACK", callback_data=f"{GO_BACK}:{phase}")],
+        ])
     
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
@@ -285,6 +306,54 @@ async def handle_file_button(callback: CallbackQuery) -> None:
             await callback.answer(f"⚠️ Could not send {path.name}", show_alert=True)
     else:
         await callback.answer(f"⚠️ File not found: {path.name}", show_alert=True)
+
+
+@router.callback_query(F.data.startswith("refine_screen:"))
+async def handle_refine_screen(callback: CallbackQuery) -> None:
+    """CEO wants to refine specific screen in Stitch design."""
+    if not callback.message:
+        await callback.answer("⚠️ Message context lost")
+        return
+    
+    await callback.answer()
+    
+    await callback.message.answer(
+        "🎨 <b>Johnny Vibe:</b> Отправь мне инструкцию для уточнения дизайна.\n\n"
+        "<b>Примеры (по Stitch best practices):</b>\n"
+        "• <code>On homepage, add search bar to header</code>\n"
+        "• <code>Change primary CTA button to be larger and use brand blue</code>\n"
+        "• <code>Update login screen background to light gradient</code>\n\n"
+        "💡 <b>Совет:</b> Меняй 1-2 элемента за раз для лучшего результата.\n"
+        "Используй UI/UX термины (button, header, navigation, card).",
+        parse_mode=ParseMode.HTML,
+    )
+    # TODO: Set state to wait for refinement text and pass to phase_3_refine
+
+
+@router.callback_query(F.data.startswith("change_theme:"))
+async def handle_change_theme(callback: CallbackQuery) -> None:
+    """CEO wants to change design theme (colors/fonts/borders)."""
+    if not callback.message:
+        await callback.answer("⚠️ Message context lost")
+        return
+    
+    await callback.answer()
+    
+    await callback.message.answer(
+        "🎨 <b>Johnny Vibe:</b> Давай изменим тему дизайна!\n\n"
+        "<b>Примеры изменений:</b>\n\n"
+        "🎨 <b>Цвета:</b>\n"
+        "• <code>Change primary color to forest green</code>\n"
+        "• <code>Update theme to warm, inviting color palette</code>\n\n"
+        "✍️ <b>Шрифты:</b>\n"
+        "• <code>Use playful sans-serif font</code>\n"
+        "• <code>Change headings to elegant serif font</code>\n\n"
+        "📐 <b>Границы:</b>\n"
+        "• <code>Make all buttons fully rounded corners</code>\n"
+        "• <code>Add 2px solid borders to input fields</code>",
+        parse_mode=ParseMode.HTML,
+    )
+    # TODO: Set state to wait for theme change text and pass to phase_3_theme_change
 
 
 async def run_bot(

@@ -318,18 +318,27 @@ Order: Product_Backlog.md, then MVP_Scope.md, then Sprint_1_TODO.md"""
 
 
 def phase_3(state: PhaseState, config: RunnableConfig) -> dict[str, Any]:
-    """Phase 3 — UI/UX Design (Google Stitch). AI-powered design system generation using Ollama."""
+    """
+    Phase 3 — UI/UX Design (Google Stitch Integration).
+    
+    Generates design system using Ollama + creates visual prototypes via Google Stitch.
+    Follows best practices from: https://www.adosolve.co.in/post/stitch-prompt-guide
+    """
     import json
     import requests
     from pathlib import Path
     from src.core.config import config as app_config
+    from src.integrations.stitch_client import StitchClient, StitchError
+    from src.integrations.stitch_prompt_builder import StitchPromptBuilder
 
     thread_id = config.get("configurable", {}).get("thread_id", "default")
-    logger.info("phase_3_start_ai", extra={"phase": 3, "thread_id": thread_id})
+    logger.info("phase_3_start_ai", extra={"phase": 3, "thread_id": thread_id, "stitch_enabled": app_config.GOOGLE_STITCH_ENABLED})
 
     # Prepare artifacts directory
     artifacts_dir = Path("artifacts") / thread_id / "docs"
     artifacts_dir.mkdir(parents=True, exist_ok=True)
+    assets_dir = Path("artifacts") / thread_id / "assets" / "ui"
+    assets_dir.mkdir(parents=True, exist_ok=True)
 
     # Read Phase 2 artifacts
     mvp_scope_path = artifacts_dir / "MVP_Scope.md"
@@ -342,57 +351,54 @@ def phase_3(state: PhaseState, config: RunnableConfig) -> dict[str, Any]:
         logger.error("phase_3_missing_input", extra={"thread_id": thread_id, "error": str(e)})
         raise ValueError(f"Phase 2 artifacts not found: {e}")
 
-    # Construct prompt for Ollama
+    # STEP 1: Ollama generates Design Strategy (optimized for Stitch)
     design_prompt = f"""You are Johnny Vibe, a world-class UI/UX Designer.
 
-You have been given the following product specifications:
-
+You have been given:
 ---MVP SCOPE---
 {mvp_scope}
 
 ---PRODUCT BACKLOG---
 {backlog}
 
-Your task is to create 4 design documents:
+Your task: Create design strategy optimized for Google Stitch prototype generation.
 
-1. **Design_System.md** - Complete design system with:
-   - Brand identity (name suggestions, tagline, tone)
-   - Color palette (primary, secondary, neutrals, semantic colors)
-   - Typography scale (headings, body, captions)
-   - Component library (buttons, inputs, cards, navigation, modals)
-   - Spacing system (grid, margins, padding)
-   - Interaction patterns (hover states, animations, transitions)
-   - Accessibility guidelines (WCAG 2.1 AA)
+Generate 5 documents:
 
-2. **Design_Tokens.json** - Design tokens in JSON format:
-   - colors: primary, secondary, neutrals, semantic (success/warning/error)
-   - typography: font families, sizes, weights, line heights
-   - spacing: base unit and scale (4px, 8px, 16px, 24px, 32px, 48px, 64px)
-   - borderRadius: none, sm, md, lg, xl, full
-   - shadows: sm, md, lg, xl
-   - breakpoints: mobile, tablet, desktop
+1. **Design_Strategy.json** - Structured data for Stitch prompt builder:
+{{
+  "high_level_concept": "An app for [audience] to [core functionality]",
+  "vibe_adjectives": "modern and user-friendly",
+  "target_audience": "specific user personas",
+  "color_mood": "energetic and inviting" OR "primary_color": "#4A90E2",
+  "font_style": "clean sans-serif" OR "playful rounded",
+  "border_style": "fully rounded corners" OR "sharp edges",
+  "image_style": "bright product photos, lifestyle imagery",
+  "screens": [
+    {{
+      "name": "Login",
+      "purpose": "User authentication",
+      "components": ["email input", "password input", "primary CTA button", "social login options"],
+      "cta": "Sign In button (large, primary color, fully rounded)",
+      "states": ["idle", "loading", "error", "success"]
+    }}
+  ]
+}}
 
-3. **UI_Screens_List.md** - Complete list of screens with:
-   - Screen name and purpose
-   - User stories it satisfies
-   - Key components on the screen
-   - States (loading, empty, error, success)
-   - Navigation flow
-   Minimum screens: Auth (login/signup), Home/Dashboard, Primary feature screens, Settings/Profile
+2. **Design_System.md** - Full design system documentation
 
-4. **Prototype_Link.md** - Prototype information with:
-   - Design tool recommendation (Figma/Stitch)
-   - Screens to prototype
-   - Interactive flows to demonstrate
-   - Link placeholder: "[TO BE CREATED IN FIGMA]"
-   - Instructions for designer to follow
+3. **Design_Tokens.json** - Design tokens (colors, typography, spacing, borders, shadows)
 
-Make the design modern, beautiful, and user-friendly. Consider current UI/UX trends (glassmorphism, micro-interactions, minimalism).
+4. **UI_Screens_List.md** - Detailed screen specifications
 
-IMPORTANT: Separate each document with the exact marker:
----DOCUMENT_SEPARATOR---
+5. **Stitch_Refinement_Guide.md** - Common refinement prompts for this design
+   Include examples like:
+   - "On homepage, add search bar to header"
+   - "Change primary CTA button to be larger"
+   - "Update theme to warm color palette"
 
-Order: Design_System.md, then Design_Tokens.json, then UI_Screens_List.md, then Prototype_Link.md"""
+IMPORTANT: Separate with ---DOCUMENT_SEPARATOR---
+Order: Design_Strategy.json, Design_System.md, Design_Tokens.json, UI_Screens_List.md, Stitch_Refinement_Guide.md"""
 
     # Call Ollama
     try:
@@ -412,65 +418,185 @@ Order: Design_System.md, then Design_Tokens.json, then UI_Screens_List.md, then 
         logger.exception("phase_3_ollama_failed", extra={"thread_id": thread_id, "error": str(e)})
         raise
 
-    # Parse the 4 documents
+    # STEP 2: Parse Ollama output
     try:
         parts = full_text.split("---DOCUMENT_SEPARATOR---")
-        if len(parts) < 4:
-            raise ValueError(f"Expected 4 documents, got {len(parts)}")
+        if len(parts) < 5:
+            logger.warning("phase_3_incomplete_documents", extra={"got": len(parts), "expected": 5})
+            # Pad with defaults if needed
+            while len(parts) < 5:
+                parts.append("")
         
-        design_system = parts[0].strip()
-        design_tokens_text = parts[1].strip()
-        ui_screens = parts[2].strip()
-        prototype_link = parts[3].strip()
+        design_strategy_text = parts[0].strip()
+        design_system = parts[1].strip()
+        design_tokens_text = parts[2].strip()
+        ui_screens = parts[3].strip()
+        refinement_guide = parts[4].strip() if len(parts) > 4 else ""
 
+        # Parse Design_Strategy.json
+        design_strategy = StitchPromptBuilder.parse_design_strategy(design_strategy_text)
+        
         # Write artifacts
+        (artifacts_dir / "Design_Strategy.json").write_text(
+            json.dumps(design_strategy, indent=2), encoding="utf-8"
+        )
         (artifacts_dir / "Design_System.md").write_text(design_system, encoding="utf-8")
         (artifacts_dir / "UI_Screens_List.md").write_text(ui_screens, encoding="utf-8")
-        (artifacts_dir / "Prototype_Link.md").write_text(prototype_link, encoding="utf-8")
+        if refinement_guide:
+            (artifacts_dir / "Stitch_Refinement_Guide.md").write_text(refinement_guide, encoding="utf-8")
         
         # Extract and write Design_Tokens.json
-        # Try to find JSON in the text (it might be wrapped in markdown code blocks)
         import re
         json_match = re.search(r'```json\s*(\{.*?\})\s*```', design_tokens_text, re.DOTALL)
         if json_match:
             tokens_json = json_match.group(1)
         elif design_tokens_text.strip().startswith('{'):
-            # Already JSON, just extract it
             tokens_json = design_tokens_text.strip()
         else:
-            # Try to find any JSON object
             json_match = re.search(r'(\{.*\})', design_tokens_text, re.DOTALL)
             if json_match:
                 tokens_json = json_match.group(1)
             else:
                 raise ValueError("Could not extract JSON from Design_Tokens")
         
-        # Validate JSON
         tokens_data = json.loads(tokens_json)
         (artifacts_dir / "Design_Tokens.json").write_text(
             json.dumps(tokens_data, indent=2), encoding="utf-8"
         )
 
         logger.info(
-            "phase_3_artifacts_written",
+            "phase_3_ollama_complete",
             extra={
                 "thread_id": thread_id,
-                "design_system_len": len(design_system),
-                "tokens_keys": list(tokens_data.keys()) if isinstance(tokens_data, dict) else "not_dict",
-                "screens_len": len(ui_screens),
+                "screens_count": len(design_strategy.get("screens", [])),
             },
         )
     except Exception as e:
         logger.exception("phase_3_parse_failed", extra={"thread_id": thread_id, "error": str(e)})
         raise
 
-    # Then continue with interrupt logic
+    # STEP 3: Google Stitch Integration (if enabled)
+    stitch_project_id = None
+    stitch_preview_url = None
+    screenshot_paths = []
+
+    if app_config.GOOGLE_STITCH_ENABLED and app_config.GOOGLE_STITCH_API_KEY:
+        try:
+            # Build Stitch prompt following best practices
+            prompt_builder = StitchPromptBuilder(design_strategy)
+            stitch_prompt = prompt_builder.build_initial_prompt()
+            
+            # Save Stitch prompt for debugging/refinement
+            (artifacts_dir / "Stitch_Prompt.txt").write_text(stitch_prompt, encoding="utf-8")
+            
+            # Call Stitch API
+            stitch_client = StitchClient(
+                api_key=app_config.GOOGLE_STITCH_API_KEY,
+                base_url=app_config.GOOGLE_STITCH_BASE_URL,
+                timeout=app_config.GOOGLE_STITCH_TIMEOUT,
+            )
+            
+            project_name = f"{thread_id[:8]}_design"
+            stitch_result = stitch_client.create_design(stitch_prompt, project_name)
+            
+            stitch_project_id = stitch_result["project_id"]
+            stitch_preview_url = stitch_result["preview_url"]
+            
+            # Download screenshots
+            if stitch_result.get("screenshots"):
+                screenshot_paths = stitch_client.download_all_screenshots(
+                    stitch_result["screenshots"],
+                    assets_dir
+                )
+            
+            logger.info(
+                "phase_3_stitch_success",
+                extra={
+                    "thread_id": thread_id,
+                    "project_id": stitch_project_id,
+                    "screenshots": len(screenshot_paths),
+                },
+            )
+            
+            # Create Prototype_Link.md with REAL Stitch URL
+            prototype_content = f"""# Interactive Prototype
+
+## Stitch Project
+**Live Prototype:** {stitch_preview_url}  
+**Project ID:** {stitch_project_id}
+
+## Screens Generated
+{len(screenshot_paths)} screens created
+
+## Refinement Instructions
+See `Stitch_Refinement_Guide.md` for common refinement prompts.
+
+To refine specific screens, use the REFINE button in Telegram and provide:
+- Specific screen name
+- Exact change needed
+- UI/UX keywords (button, header, navigation, etc.)
+
+Example: "On homepage, add search bar to header"
+
+## Export to Figma
+Available upon request. Use the EXPORT TO FIGMA button.
+"""
+            
+        except StitchError as e:
+            logger.warning("phase_3_stitch_failed_fallback", extra={"thread_id": thread_id, "error": str(e)})
+            # Fallback to text-only if Stitch fails
+            prototype_content = f"""# Prototype Link
+
+## Google Stitch Integration Failed
+{str(e)}
+
+## Fallback Mode
+Using text-only design specifications.
+Design can be manually created in Figma using:
+- Design_System.md
+- Design_Tokens.json
+- UI_Screens_List.md
+
+## Stitch Prompt
+See `Stitch_Prompt.txt` for the generated Stitch prompt that can be used manually.
+"""
+    else:
+        # Stitch disabled - text-only mode
+        logger.info("phase_3_stitch_disabled", extra={"thread_id": thread_id})
+        prototype_content = """# Prototype Link
+
+## Manual Design Required
+Google Stitch integration is disabled.
+
+Create design manually in Figma/Stitch using:
+- Design_System.md (design specifications)
+- Design_Tokens.json (colors, fonts, spacing)
+- UI_Screens_List.md (screen layouts)
+- Stitch_Prompt.txt (ready-to-use Stitch prompt)
+
+## To Enable Stitch
+Set in `.env`:
+```
+GOOGLE_STITCH_ENABLED=true
+GOOGLE_STITCH_API_KEY=your_api_key
+```
+"""
+    
+    (artifacts_dir / "Prototype_Link.md").write_text(prototype_content, encoding="utf-8")
+
+    # STEP 4: Prepare artifact files for Telegram
     artifact_files = [
         str(artifacts_dir / "Design_System.md"),
         str(artifacts_dir / "Design_Tokens.json"),
         str(artifacts_dir / "UI_Screens_List.md"),
         str(artifacts_dir / "Prototype_Link.md"),
     ]
+    
+    # Add screenshots if available
+    for screenshot_path in screenshot_paths:
+        artifact_files.append(str(screenshot_path))
+    
+    # STEP 5: Interrupt for CEO approval
     response = interrupt(
         {
             "phase": 3,
@@ -480,7 +606,13 @@ Order: Design_System.md, then Design_Tokens.json, then UI_Screens_List.md, then 
         }
     )
     approved = response.get("approved", False) if isinstance(response, dict) else bool(response)
-    return {"current_phase": 3, "approved": approved}
+    
+    return {
+        "current_phase": 3,
+        "approved": approved,
+        "stitch_project_id": stitch_project_id,
+        "stitch_preview_url": stitch_preview_url,
+    }
 
 
 def phase_4(state: PhaseState, config: RunnableConfig) -> dict[str, Any]:

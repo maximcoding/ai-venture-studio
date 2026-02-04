@@ -24,6 +24,12 @@ class Config:
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
     OLLAMA_TIMEOUT: int = int(os.getenv("OLLAMA_TIMEOUT", "120"))
 
+    # Google Stitch (UI/UX Design)
+    GOOGLE_STITCH_API_KEY: str = os.getenv("GOOGLE_STITCH_API_KEY", "")
+    GOOGLE_STITCH_BASE_URL: str = os.getenv("GOOGLE_STITCH_BASE_URL", "https://stitch.google.com")
+    GOOGLE_STITCH_TIMEOUT: int = int(os.getenv("GOOGLE_STITCH_TIMEOUT", "120"))
+    GOOGLE_STITCH_ENABLED: bool = os.getenv("GOOGLE_STITCH_ENABLED", "true").lower() == "true"
+
     @classmethod
     def validate(cls) -> None:
         """Validate required configuration is present."""
@@ -33,6 +39,9 @@ class Config:
         if not cls.TELEGRAM_BOT_TOKEN:
             errors.append("TELEGRAM_BOT_TOKEN not set")
         # Ollama doesn't require API key, just URL
+        # Stitch is optional - if enabled, API key is required
+        if cls.GOOGLE_STITCH_ENABLED and not cls.GOOGLE_STITCH_API_KEY:
+            errors.append("GOOGLE_STITCH_API_KEY not set (or set GOOGLE_STITCH_ENABLED=false)")
         
         if errors:
             raise ValueError(f"Configuration errors: {', '.join(errors)}")

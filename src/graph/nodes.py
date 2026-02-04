@@ -400,7 +400,7 @@ Generate 5 documents:
 IMPORTANT: Separate with ---DOCUMENT_SEPARATOR---
 Order: Design_Strategy.json, Design_System.md, Design_Tokens.json, UI_Screens_List.md, Stitch_Refinement_Guide.md"""
 
-    # Call Ollama
+    # Call Ollama (Phase 3 needs more time - 5 documents generation)
     try:
         response = requests.post(
             f"{app_config.OLLAMA_BASE_URL}/api/chat",
@@ -409,7 +409,7 @@ Order: Design_Strategy.json, Design_System.md, Design_Tokens.json, UI_Screens_Li
                 "messages": [{"role": "user", "content": design_prompt}],
                 "stream": False,
             },
-            timeout=app_config.OLLAMA_TIMEOUT,
+            timeout=240,  # 4 minutes for Phase 3 (generates 5 documents)
         )
         response.raise_for_status()
         result = response.json()

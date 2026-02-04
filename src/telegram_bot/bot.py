@@ -237,17 +237,25 @@ async def handle_approve(callback: CallbackQuery) -> None:
     if not callback.data or _graph is None:
         await callback.answer("Bot not ready.")
         return
+    
+    # IMMEDIATE FEEDBACK - answer callback first!
+    await callback.answer("✅ Approved! Processing...")
+    
     _, phase = callback.data.split(":", 1)
     thread_id = f"user_{callback.from_user.id}" if callback.from_user else "default"
     run_config = {**_default_config, "configurable": {"thread_id": thread_id}}
+
+    # Show loading state
+    if callback.message:
+        await callback.message.edit_text(
+            f"✅ Phase {phase} approved.\n\n⏳ Processing next phase...",
+            reply_markup=None  # Remove buttons to prevent double-clicks
+        )
 
     from langgraph.types import Command
 
     # Resume and check if next phase interrupted
     result = await _graph.ainvoke(Command(resume={"approved": True}), run_config)
-    await callback.answer("Approved. Pipeline continued.")
-    if callback.message:
-        await callback.message.edit_text(f"Phase {phase} approved. Pipeline continued.")
 
     # Check if the next phase also interrupted (phase-to-phase transition)
     if "__interrupt__" in result and result["__interrupt__"]:
@@ -268,19 +276,21 @@ async def handle_approve(callback: CallbackQuery) -> None:
 @router.callback_query(F.data.startswith(GO_BACK))
 async def handle_go_back(callback: CallbackQuery) -> None:
     """Ack GO BACK (full rollback logic can be added later)."""
-    await callback.answer("Go back: use Time Machine / rollback when implemented.")
+    await callback.answer("🔙 Go Back: Time Machine feature coming soon!", show_alert=True)
 
 
 @router.callback_query(F.data.startswith(VIEW_DOCS))
 async def handle_view_docs(callback: CallbackQuery) -> None:
     """Point user to per-run artifacts folder."""
+    await callback.answer("📄 Opening docs info...")
+    
     thread_id = f"user_{callback.from_user.id}" if callback.from_user else "default"
     artifacts_path = f"artifacts/{thread_id}/docs/"
-    await callback.answer("Artifacts are per-run.")
+    
     if callback.message:
         await callback.message.answer(
-            f"Your artifacts folder: <code>{artifacts_path}</code>\n"
-            "Factory manuals (PHASE_*.md) are in /docs.",
+            f"📁 Your artifacts folder: <code>{artifacts_path}</code>\n\n"
+            "📚 Factory manuals (PHASE_*.md) are in <code>/docs</code>.",
             parse_mode="HTML",
         )
 
@@ -292,6 +302,9 @@ async def handle_file_button(callback: CallbackQuery) -> None:
         await callback.answer("⚠️ No file path provided.")
         return
     
+    # Immediate feedback
+    await callback.answer("📄 Sending file...")
+    
     # Parse file path from callback data (format: "file:/path/to/file.md")
     file_path = callback.data[5:]  # Remove "file:" prefix
     path = Path(file_path)
@@ -300,12 +313,11 @@ async def handle_file_button(callback: CallbackQuery) -> None:
         try:
             document = FSInputFile(file_path)
             await callback.message.answer_document(document)
-            await callback.answer("✅ File sent")
         except Exception as e:
             logger.warning("failed_to_resend_file", extra={"file": file_path, "error": str(e)})
-            await callback.answer(f"⚠️ Could not send {path.name}", show_alert=True)
+            await callback.message.answer(f"⚠️ Could not send file: {path.name}")
     else:
-        await callback.answer(f"⚠️ File not found: {path.name}", show_alert=True)
+        await callback.message.answer(f"⚠️ File not found: {path.name}")
 
 
 @router.callback_query(F.data.startswith("refine_screen:"))
@@ -315,7 +327,7 @@ async def handle_refine_screen(callback: CallbackQuery) -> None:
         await callback.answer("⚠️ Message context lost")
         return
     
-    await callback.answer()
+    await callback.answer("🔁 Opening refinement mode...")
     
     await callback.message.answer(
         "🎨 <b>Johnny Vibe:</b> Отправь мне инструкцию для уточнения дизайна.\n\n"
@@ -337,7 +349,7 @@ async def handle_change_theme(callback: CallbackQuery) -> None:
         await callback.answer("⚠️ Message context lost")
         return
     
-    await callback.answer()
+    await callback.answer("🎨 Opening theme editor...")
     
     await callback.message.answer(
         "🎨 <b>Johnny Vibe:</b> Давай изменим тему дизайна!\n\n"

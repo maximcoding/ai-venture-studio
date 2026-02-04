@@ -190,8 +190,131 @@ Second document: Assumptions.md content"""
 
 
 def phase_2(state: PhaseState, config: RunnableConfig) -> dict[str, Any]:
-    """Phase 2 — Product Management (Backlog & MVP)."""
-    return phase_node(2)(state, config)
+    """Phase 2 — Product Management (Backlog & MVP). AI-powered analysis using Ollama."""
+    import requests
+    from pathlib import Path
+    from src.core.config import config as app_config
+
+    thread_id = config.get("configurable", {}).get("thread_id", "default")
+    logger.info("phase_2_start_ai", extra={"phase": 2, "thread_id": thread_id})
+
+    # Prepare artifacts directory
+    artifacts_dir = Path("artifacts") / thread_id / "docs"
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+
+    # Read Phase 1 artifacts
+    business_logic_path = artifacts_dir / "Business_Logic.md"
+    assumptions_path = artifacts_dir / "Assumptions.md"
+
+    try:
+        business_logic = business_logic_path.read_text(encoding="utf-8")
+        assumptions = assumptions_path.read_text(encoding="utf-8")
+    except FileNotFoundError as e:
+        logger.error("phase_2_missing_input", extra={"thread_id": thread_id, "error": str(e)})
+        raise ValueError(f"Phase 1 artifacts not found: {e}")
+
+    # Construct prompt for Ollama
+    analysis_prompt = f"""You are Smarty Vegan, a world-class Product Manager.
+
+You have been given the following business analysis:
+
+---BUSINESS LOGIC---
+{business_logic}
+
+---ASSUMPTIONS---
+{assumptions}
+
+Your task is to create 3 documents:
+
+1. **Product_Backlog.md** - A complete product backlog with:
+   - User personas
+   - User stories in format: "As a [persona], I want [goal], so that [benefit]"
+   - Acceptance criteria for each story
+   - Priority (P0/P1/P2)
+   - Dependencies between stories
+
+2. **MVP_Scope.md** - A clear MVP boundary with:
+   - IN SCOPE: Features that MUST be in MVP (justify each)
+   - OUT OF SCOPE: Features postponed to v2+ (justify each)
+   - Success metrics for MVP
+   - Technical constraints
+   - Timeline assumptions
+
+3. **Sprint_1_TODO.md** - Concrete engineering tasks for first sprint:
+   - Break MVP stories into specific technical tasks
+   - Each task should be actionable (< 1 day of work)
+   - Include dependencies and order
+   - Separate by: Backend, Frontend, DevOps, Testing
+
+Generate all 3 documents in markdown format.
+
+IMPORTANT: Separate each document with the exact marker:
+---DOCUMENT_SEPARATOR---
+
+Order: Product_Backlog.md, then MVP_Scope.md, then Sprint_1_TODO.md"""
+
+    # Call Ollama
+    try:
+        response = requests.post(
+            f"{app_config.OLLAMA_BASE_URL}/api/chat",
+            json={
+                "model": app_config.OLLAMA_MODEL,
+                "messages": [{"role": "user", "content": analysis_prompt}],
+                "stream": False,
+            },
+            timeout=app_config.OLLAMA_TIMEOUT,
+        )
+        response.raise_for_status()
+        result = response.json()
+        full_text = result["message"]["content"]
+    except Exception as e:
+        logger.exception("phase_2_ollama_failed", extra={"thread_id": thread_id, "error": str(e)})
+        raise
+
+    # Parse the 3 documents
+    try:
+        parts = full_text.split("---DOCUMENT_SEPARATOR---")
+        if len(parts) < 3:
+            raise ValueError(f"Expected 3 documents, got {len(parts)}")
+        
+        backlog = parts[0].strip()
+        mvp_scope = parts[1].strip()
+        sprint_todo = parts[2].strip()
+
+        # Write artifacts
+        (artifacts_dir / "Product_Backlog.md").write_text(backlog, encoding="utf-8")
+        (artifacts_dir / "MVP_Scope.md").write_text(mvp_scope, encoding="utf-8")
+        (artifacts_dir / "Sprint_1_TODO.md").write_text(sprint_todo, encoding="utf-8")
+
+        logger.info(
+            "phase_2_artifacts_written",
+            extra={
+                "thread_id": thread_id,
+                "backlog_len": len(backlog),
+                "mvp_len": len(mvp_scope),
+                "sprint_len": len(sprint_todo),
+            },
+        )
+    except Exception as e:
+        logger.exception("phase_2_parse_failed", extra={"thread_id": thread_id, "error": str(e)})
+        raise
+
+    # Then continue with interrupt logic
+    artifact_files = [
+        str(artifacts_dir / "Product_Backlog.md"),
+        str(artifacts_dir / "MVP_Scope.md"),
+        str(artifacts_dir / "Sprint_1_TODO.md"),
+    ]
+    response = interrupt(
+        {
+            "phase": 2,
+            "phase_name": "product_management_backlog_mvp",
+            "message": PHASE_PERSONA_MESSAGES[2],
+            "artifact_files": artifact_files,
+        }
+    )
+    approved = response.get("approved", False) if isinstance(response, dict) else bool(response)
+    return {"current_phase": 2, "approved": approved}
 
 
 def phase_3(state: PhaseState, config: RunnableConfig) -> dict[str, Any]:

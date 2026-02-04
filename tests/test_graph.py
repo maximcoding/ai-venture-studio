@@ -215,6 +215,136 @@ GDPR-compliant data storage, encrypted payment info, SOC 2 Type II certification
 
 
 @pytest.mark.asyncio
+async def test_phase_2_creates_artifacts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Phase 2 reads Phase 1 artifacts and creates 3 Phase 2 artifacts."""
+    from unittest.mock import MagicMock
+
+    from langgraph.checkpoint.memory import InMemorySaver
+    from langgraph.types import Command
+
+    # Setup Phase 1 artifacts manually (Phase 1 already tested separately)
+    artifacts_dir = tmp_path / "artifacts" / "test-user-phase2" / "docs"
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+    (artifacts_dir / "Business_Logic.md").write_text("# Business Logic\n\nTest business content")
+    (artifacts_dir / "Assumptions.md").write_text("# Assumptions\n\nTest assumptions")
+
+    # Mock Ollama API - Phase 1 and Phase 2 responses
+    phase1_response = {
+        "message": {"content": "# Business Logic\nTest\n---DOCUMENT_SEPARATOR---\n# Assumptions\nTest"}
+    }
+    phase2_response = {
+        "message": {
+            "content": """# Product Backlog
+
+## User Personas
+- Freelancer
+
+## User Stories
+**US-1**: As a freelancer, I want to create invoices, so that I can bill clients
+- **Priority**: P0
+- **AC1**: User can create invoice with line items
+- **AC2**: Invoice has unique ID
+
+---DOCUMENT_SEPARATOR---
+
+# MVP Scope
+
+## IN SCOPE
+- Invoice creation and editing
+- PDF export
+- Email delivery
+
+## OUT OF SCOPE
+- Time tracking (v2)
+- Payment integration (v2)
+
+## Success Metrics
+- 100 users in 3 months
+- 80% invoice completion rate
+
+---DOCUMENT_SEPARATOR---
+
+# Sprint 1 TODO
+
+## Backend
+- [ ] Setup PostgreSQL schema for invoices
+- [ ] Create REST API for CRUD operations
+
+## Frontend
+- [ ] Build invoice form component
+- [ ] Implement PDF generation
+
+## DevOps
+- [ ] Setup Docker Compose
+
+## Testing
+- [ ] Unit tests for invoice model"""
+        }
+    }
+
+    call_count = 0
+    def mock_post_side_effect(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        mock_response = MagicMock()
+        if call_count == 1:
+            mock_response.json.return_value = phase1_response
+        else:
+            mock_response.json.return_value = phase2_response
+        mock_response.raise_for_status = MagicMock()
+        return mock_response
+    
+    monkeypatch.setattr("requests.post", mock_post_side_effect)
+
+    # Change to tmp directory for test isolation
+    import os
+    original_cwd = os.getcwd()
+    os.chdir(tmp_path)
+
+    try:
+        checkpointer = InMemorySaver()
+        graph = build_workflow(checkpointer)
+
+        config = {"configurable": {"thread_id": "test-user-phase2"}}
+        initial: PhaseState = {
+            "messages": [],
+            "current_phase": 0,
+            "approved": False,
+            "ceo_prompt": "Build invoice management SaaS",
+        }
+
+        # Phase 1 interrupts
+        result1 = await graph.ainvoke(initial, config=config)
+        assert "__interrupt__" in result1
+
+        # Resume Phase 1 with approval -> Phase 2 runs and interrupts
+        result2 = await graph.ainvoke(Command(resume={"approved": True}), config=config)
+        assert "__interrupt__" in result2
+        assert result2["__interrupt__"][0].value.get("phase") == 2
+
+        # Check Phase 2 artifacts were created
+        assert (artifacts_dir / "Product_Backlog.md").exists()
+        assert (artifacts_dir / "MVP_Scope.md").exists()
+        assert (artifacts_dir / "Sprint_1_TODO.md").exists()
+
+        # Check content
+        backlog = (artifacts_dir / "Product_Backlog.md").read_text()
+        assert "Product Backlog" in backlog
+        assert "User Stories" in backlog
+
+        mvp_scope = (artifacts_dir / "MVP_Scope.md").read_text()
+        assert "MVP Scope" in mvp_scope
+        assert "IN SCOPE" in mvp_scope
+        assert "OUT OF SCOPE" in mvp_scope
+
+        sprint = (artifacts_dir / "Sprint_1_TODO.md").read_text()
+        assert "Sprint 1" in sprint or "TODO" in sprint
+        assert "Backend" in sprint or "Frontend" in sprint
+    finally:
+        os.chdir(original_cwd)
+
+
+@pytest.mark.asyncio
 async def test_phase_to_phase_transition(monkeypatch: pytest.MonkeyPatch) -> None:
     """Approving Phase 1 triggers Phase 2 interrupt."""
     from unittest.mock import MagicMock
@@ -222,15 +352,32 @@ async def test_phase_to_phase_transition(monkeypatch: pytest.MonkeyPatch) -> Non
     from langgraph.checkpoint.memory import InMemorySaver
     from langgraph.types import Command
 
-    # Mock Ollama API
-    mock_response = MagicMock()
-    mock_response.json.return_value = {
-        "message": {"content": "# Business Logic\nTest\n---DOCUMENT_SEPARATOR---\n# Assumptions\nTest"}
-    }
-    mock_response.raise_for_status = MagicMock()
+    # Mock Ollama API - return different responses for Phase 1 and Phase 2
+    phase1_content = "# Business Logic\nTest\n---DOCUMENT_SEPARATOR---\n# Assumptions\nTest"
+    phase2_content = """# Product Backlog
+Test backlog
+---DOCUMENT_SEPARATOR---
+# MVP Scope
+Test MVP scope
+---DOCUMENT_SEPARATOR---
+# Sprint 1 TODO
+Test sprint tasks"""
+
+    call_count = 0
+    def mock_post_side_effect(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        mock_response = MagicMock()
+        if call_count == 1:
+            # Phase 1 call
+            mock_response.json.return_value = {"message": {"content": phase1_content}}
+        else:
+            # Phase 2 call
+            mock_response.json.return_value = {"message": {"content": phase2_content}}
+        mock_response.raise_for_status = MagicMock()
+        return mock_response
     
-    mock_post = MagicMock(return_value=mock_response)
-    monkeypatch.setattr("requests.post", mock_post)
+    monkeypatch.setattr("requests.post", mock_post_side_effect)
 
     checkpointer = InMemorySaver()
     graph = build_workflow(checkpointer)
@@ -252,4 +399,6 @@ async def test_phase_to_phase_transition(monkeypatch: pytest.MonkeyPatch) -> Non
     result2 = await graph.ainvoke(Command(resume={"approved": True}), config=config)
     assert "__interrupt__" in result2
     assert result2["__interrupt__"][0].value.get("phase") == 2
-    assert "Phase 2" in result2["__interrupt__"][0].value.get("message", "")
+    # Check for persona message
+    message = result2["__interrupt__"][0].value.get("message", "")
+    assert "Smarty Vegan" in message or "Phase 2" in message

@@ -1,42 +1,33 @@
-**MVP_Scope.md**
-
 # MVP Scope
 
-## IN SCOPE
+## IN SCOPE: Features that MUST be in MVP
 
-* Personalized meal planning based on user dietary preferences and ingredient availability
-* Integration with popular grocery delivery services for seamless ordering
-* Social sharing features to discover new recipes
+1. **Meal Planning**: Users can plan meals for the week using a database of healthy recipes.
+2. **Grocery Lists**: The app generates a grocery list based on selected meals for the week.
+3. **User Profile**: Users can create and manage their profiles, including dietary restrictions and preferences.
 
-### Justification:
+## OUT OF SCOPE: Features postponed to v2+
 
-* These core features align with the primary pain points of our target audience (Busy Professionals).
-* They provide a solid foundation for future development and differentiation from existing meal planning apps.
-
-## OUT OF SCOPE
-
-* Advanced analytics and data visualization for user behavior insights
-* AI-powered recipe suggestion based on user preferences and ingredient availability
-* In-app payment processing for subscription-based model
-
-### Justification:
-
-* These features, while desirable, are secondary to the core MVP scope.
-* They require significant development effort and may be postponed to future releases.
+1. **Nutritional Tracking**: Users cannot track their nutritional intake or set custom dietary goals (justification: too complex for MVP).
+2. **Recipe Creation**: Users cannot create and save their own recipes (justification: requires additional infrastructure and testing).
 
 ## Success Metrics for MVP
 
-* User retention rate: 70% within the first month
-* Average daily active users: 10,000
-* Customer satisfaction rating (CSAT): 4.5/5
+* 80% of users report saving at least 30 minutes per day on meal planning and grocery shopping
+* 70% of users report an increase in healthy eating habits
+* Average user rating is 4.5/5 stars on the app store
 
-### Technical Constraints:
+## Technical Constraints
 
-* Development team size and skillset limitations
-* Integration with partner grocery delivery services' APIs
-* Database scalability requirements for storing user data
+* The app will be built using a cloud-based platform (AWS or Google Cloud)
+* Machine learning libraries (e.g., TensorFlow, PyTorch) will be used for meal planning algorithms
+* User data will be stored securely using industry-standard encryption (e.g., AES-256)
 
-## Timeline Assumptions:
+## Timeline Assumptions
 
-* MVP development will take approximately 12 weeks.
-* Testing and iteration will occur concurrently with development.
+* Development will take 12 weeks with a team of 5 developers
+* Testing and QA will take an additional 4 weeks
+
+---
+
+**Sprint_1_TODO.md**

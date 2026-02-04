@@ -481,23 +481,28 @@ Order: Design_Strategy.json, Design_System.md, Design_Tokens.json, UI_Screens_Li
             (artifacts_dir / "Stitch_Refinement_Guide.md").write_text(refinement_guide, encoding="utf-8")
         
         # Extract and write Design_Tokens.json
-        import re
-        json_match = re.search(r'```json\s*(\{.*?\})\s*```', design_tokens_text, re.DOTALL)
-        if json_match:
-            tokens_json = json_match.group(1)
-        elif design_tokens_text.strip().startswith('{'):
-            tokens_json = design_tokens_text.strip()
+        if design_tokens_text:
+            try:
+                tokens_data = StitchPromptBuilder.extract_json_from_text(design_tokens_text, "Design_Tokens")
+                (artifacts_dir / "Design_Tokens.json").write_text(
+                    json.dumps(tokens_data, indent=2), encoding="utf-8"
+                )
+            except Exception as e:
+                logger.warning(
+                    "phase_3_design_tokens_parse_failed",
+                    extra={"thread_id": thread_id, "error": str(e), "tokens_text_length": len(design_tokens_text)},
+                )
+                # Write empty fallback
+                (artifacts_dir / "Design_Tokens.json").write_text(
+                    json.dumps({"colors": {}, "typography": {}, "spacing": {}}, indent=2),
+                    encoding="utf-8",
+                )
         else:
-            json_match = re.search(r'(\{.*\})', design_tokens_text, re.DOTALL)
-            if json_match:
-                tokens_json = json_match.group(1)
-            else:
-                raise ValueError("Could not extract JSON from Design_Tokens")
-        
-        tokens_data = json.loads(tokens_json)
-        (artifacts_dir / "Design_Tokens.json").write_text(
-            json.dumps(tokens_data, indent=2), encoding="utf-8"
-        )
+            # Write empty fallback if no text
+            (artifacts_dir / "Design_Tokens.json").write_text(
+                json.dumps({"colors": {}, "typography": {}, "spacing": {}}, indent=2),
+                encoding="utf-8",
+            )
 
         logger.info(
             "phase_3_ollama_complete",

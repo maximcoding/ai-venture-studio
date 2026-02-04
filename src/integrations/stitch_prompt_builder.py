@@ -262,15 +262,16 @@ class StitchPromptBuilder:
         return ". ".join(changes) + "."
 
     @staticmethod
-    def parse_design_strategy(ollama_output: str) -> dict[str, Any]:
+    def extract_json_from_text(text: str, context: str = "JSON") -> dict[str, Any]:
         """
-        Parse Design_Strategy.json from Ollama output.
-
+        Robustly extract and parse JSON from various text formats.
+        
         Args:
-            ollama_output: Raw output from Ollama containing JSON
-
+            text: Text containing JSON
+            context: Context name for error messages (e.g. "Design_Strategy", "Design_Tokens")
+            
         Returns:
-            Parsed design strategy dict
+            Parsed JSON dict
         """
         import re
         import logging
@@ -278,28 +279,27 @@ class StitchPromptBuilder:
         logger = logging.getLogger(__name__)
 
         # Strategy 1: Try to find JSON in markdown code block
-        json_match = re.search(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", ollama_output, re.DOTALL)
+        json_match = re.search(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", text, re.DOTALL)
         if json_match:
             json_str = json_match.group(1)
             try:
                 return json.loads(json_str)
             except json.JSONDecodeError as e:
-                logger.warning(f"JSON decode failed for markdown block: {e}")
+                logger.warning(f"{context}: JSON decode failed for markdown block: {e}")
         
         # Strategy 2: Try to find raw JSON (starts with {)
-        if ollama_output.strip().startswith("{"):
+        if text.strip().startswith("{"):
             try:
-                return json.loads(ollama_output.strip())
+                return json.loads(text.strip())
             except json.JSONDecodeError as e:
-                logger.warning(f"JSON decode failed for raw JSON: {e}")
+                logger.warning(f"{context}: JSON decode failed for raw JSON: {e}")
         
-        # Strategy 3: Try to find any JSON object (greedy match)
-        json_match = re.search(r"(\{[\s\S]*\})", ollama_output, re.DOTALL)
+        # Strategy 3: Try to find any JSON object (greedy match with brace counting)
+        json_match = re.search(r"(\{[\s\S]*\})", text, re.DOTALL)
         if json_match:
             json_str = json_match.group(1)
-            # Clean up potential trailing text after }
+            # Clean up potential trailing text after } by finding first complete object
             try:
-                # Try to find the end of the first complete JSON object
                 depth = 0
                 for i, char in enumerate(json_str):
                     if char == '{':
@@ -311,8 +311,21 @@ class StitchPromptBuilder:
                             break
                 return json.loads(json_str)
             except (json.JSONDecodeError, ValueError) as e:
-                logger.warning(f"JSON decode failed for greedy match: {e}")
+                logger.warning(f"{context}: JSON decode failed for greedy match: {e}")
         
-        # Strategy 4: Log failure and provide minimal fallback
-        logger.error(f"Could not extract JSON from Ollama output. First 500 chars: {ollama_output[:500]}")
-        raise ValueError(f"Could not extract JSON from Ollama output (length: {len(ollama_output)})")
+        # Strategy 4: Log failure and raise
+        logger.error(f"{context}: Could not extract JSON. First 500 chars: {text[:500]}")
+        raise ValueError(f"Could not extract JSON from {context} (length: {len(text)})")
+
+    @staticmethod
+    def parse_design_strategy(ollama_output: str) -> dict[str, Any]:
+        """
+        Parse Design_Strategy.json from Ollama output.
+
+        Args:
+            ollama_output: Raw output from Ollama containing JSON
+
+        Returns:
+            Parsed design strategy dict
+        """
+        return StitchPromptBuilder.extract_json_from_text(ollama_output, "Design_Strategy")

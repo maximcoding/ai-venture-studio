@@ -1,72 +1,64 @@
 {
-  "high_level_concept": "An app for busy professionals to plan healthy and delicious meals",
-  "vibe_adjectives": "modern, user-friendly, clean, intuitive",
+  "high_level_concept": "An app for busy professionals and health-conscious individuals to plan meals, generate grocery lists, and track nutritional intake",
+  "vibe_adjectives": "modern, user-friendly, clean, and intuitive",
   "target_audience": [
-    "Sarah: busy professional",
-    "Mark: home cook"
+    {
+      "name": "Busy Professional (25-45 years old)",
+      "job": "Marketing Manager or Software Engineer"
+    },
+    {
+      "name": "Health-Conscious Professional (25-45 years old)",
+      "job": "Software Engineer or Marketing Manager"
+    }
   ],
-  "color_mood": {
-    "primary_color": "#4A90E2",
-    "accent_color": "#FFD700"
-  },
-  "font_style": {
-    "family_name": "Montserrat",
-    "sizes": [
-      16,
-      18,
-      20
-    ]
-  },
-  "border_style": {
-    "radius": [
-      "8px",
-      "12px"
-    ],
-    "style": "solid"
-  },
-  "image_style": {
-    "src_size": [
-      "800x600",
-      "1024x768"
-    ],
-    "background_color": "#F7F7F7",
-    "blending_mode": "multiply"
-  },
+  "color_mood": "energetic and inviting",
+  "primary_color": "#4A90E2",
+  "font_style": "clean sans-serif (e.g., Open Sans)",
+  "image_style": "bright product photos, lifestyle imagery",
   "screens": [
     {
-      "name": "Login",
-      "purpose": "User authentication",
+      "name": "Meal Planning",
+      "purpose": "Users plan meals for the week using a database of healthy recipes",
       "components": [
-        "email input",
-        "password input",
-        "primary CTA button (Sign In)",
-        "social login options"
+        "recipe cards",
+        "filtering options (dietary restrictions, preferences)",
+        "search bar"
       ],
-      "cta": {
-        "text": "Sign In",
-        "color": "#4A90E2"
-      },
+      "cta": "Plan Meals button (large, primary color)",
       "states": [
         "idle",
         "loading",
-        "error",
         "success"
       ]
     },
     {
-      "name": "Meal Plan",
-      "purpose": "View meal plan for the week",
+      "name": "Grocery List Generation",
+      "purpose": "Users generate grocery lists based on selected meals for the week",
       "components": [
-        "meal plan header",
-        "day-of-the-week cards",
-        "search bar"
+        "grocery list table",
+        "filtering options (aisle, category)",
+        "notifications"
       ],
-      "cta": {
-        "text": "Update Meal Plan",
-        "color": "#FFD700"
-      },
+      "cta": "Generate Grocery List button (large, primary color)",
       "states": [
-        "idle"
+        "idle",
+        "loading",
+        "success"
+      ]
+    },
+    {
+      "name": "User Profile",
+      "purpose": "Users create and manage their profiles, including dietary restrictions and preferences",
+      "components": [
+        "profile information card",
+        "dietary restriction selection",
+        "preference selection"
+      ],
+      "cta": "Save Changes button (large, primary color)",
+      "states": [
+        "idle",
+        "loading",
+        "success"
       ]
     }
   ]

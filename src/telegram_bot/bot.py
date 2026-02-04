@@ -15,6 +15,9 @@ APPROVE = "approve"
 GO_BACK = "go_back"
 VIEW_DOCS = "view_docs"
 
+# Track active processing sessions to prevent duplicate runs
+_active_sessions: set[str] = set()
+
 # AI Dream Team - personas for each phase
 PHASE_PERSONAS = {
     1: {
@@ -201,6 +204,29 @@ async def cmd_run(message: Message) -> None:
         return
     
     thread_id = f"user_{message.from_user.id}" if message.from_user else "default"
+    
+    # PROTECTION: Check if already processing for this user
+    if thread_id in _active_sessions:
+        await message.answer(
+            "⚠️ <b>У вас уже есть активная сессия!</b>\n\n"
+            "Дождитесь завершения текущей фазы или используйте кнопки APPROVE/GO_BACK.",
+            parse_mode=ParseMode.HTML,
+        )
+        return
+    
+    # Mark session as active
+    _active_sessions.add(thread_id)
+    
+    # IMMEDIATE FEEDBACK - show processing message
+    persona = PHASE_PERSONAS[1]
+    processing_msg = await message.answer(
+        f"{persona['emoji']} <b>Steve Bobs</b>\n\n"
+        f"⏳ Анализирую вашу идею:\n"
+        f"<i>\"{ceo_prompt[:100]}{'...' if len(ceo_prompt) > 100 else ''}\"</i>\n\n"
+        f"Это займет 30-60 секунд...",
+        parse_mode=ParseMode.HTML,
+    )
+    
     config = {**_default_config, "configurable": {"thread_id": thread_id}}
     try:
         result = await _graph.ainvoke(
@@ -219,6 +245,12 @@ async def cmd_run(message: Message) -> None:
             msg_text = payload.get("message", "Approve to continue.")
             artifact_files = payload.get("artifact_files", [])
             
+            # Delete processing message to keep chat clean
+            try:
+                await processing_msg.delete()
+            except Exception:
+                pass  # Ignore if message already deleted or doesn't exist
+            
             # Send artifact files first
             await _send_artifact_files(message, artifact_files)
             
@@ -228,7 +260,16 @@ async def cmd_run(message: Message) -> None:
             await message.answer("Pipeline step completed (no interrupt).")
     except Exception as e:
         logger.exception("run_failed")
-        await message.answer(f"Run failed: {e}")
+        await message.answer(f"❌ Run failed: {e}")
+        
+        # Delete processing message on error
+        try:
+            await processing_msg.delete()
+        except Exception:
+            pass
+    finally:
+        # Always remove from active sessions when done (success or error)
+        _active_sessions.discard(thread_id)
 
 
 @router.callback_query(F.data.startswith(APPROVE))

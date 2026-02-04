@@ -51,73 +51,107 @@ def phase_node(phase_num: int):
 
 
 def phase_1(state: PhaseState, config: RunnableConfig) -> dict[str, Any]:
-    """Phase 1 — Visionary & Business Audit. Creates artifacts."""
+    """Phase 1 — Visionary & Business Audit. AI-powered analysis of CEO idea."""
     from pathlib import Path
 
-    # Extract thread_id
-    thread_id = config.get("configurable", {}).get("thread_id", "default")
-    artifacts_dir = Path(f"artifacts/{thread_id}/docs")
+    import anthropic
 
-    # Create directory structure
+    from src.core.config import config as app_config
+
+    # Extract thread_id and CEO prompt
+    thread_id = config.get("configurable", {}).get("thread_id", "default")
+    ceo_prompt = state.get("ceo_prompt", "")
+    
+    if not ceo_prompt:
+        logger.error("phase_1_no_prompt", extra={"thread_id": thread_id})
+        raise ValueError("CEO prompt is required for Phase 1 analysis")
+
+    artifacts_dir = Path(f"artifacts/{thread_id}/docs")
     artifacts_dir.mkdir(parents=True, exist_ok=True)
 
-    # Write Business_Logic.md with required sections
-    business_logic = """# Business Logic
+    # Initialize Anthropic client
+    client = anthropic.Anthropic(api_key=app_config.ANTHROPIC_API_KEY)
 
-## Core Concept
-[One-sentence description of the product idea]
+    # Create analysis prompt
+    analysis_prompt = f"""You are a startup advisor conducting Phase 1 business analysis.
 
-## Target Audience
-**Primary Users:** [Who are they?]
-**Primary Pain:** [What problem does this solve?]
+CEO's Idea:
+{ceo_prompt}
 
-## USP (Unique Selling Proposition)
-[Why would users choose this over alternatives?]
+Task: Analyze this business idea and generate TWO structured documents:
 
-## Monetization Strategy
-[First version revenue model]
+1. **Business_Logic.md** with:
+   - Core Concept (one sentence)
+   - Target Audience (who + primary pain)
+   - USP (why choose this over alternatives)
+   - Monetization Strategy (first version revenue model)
+   - Competitive Landscape (high-level snapshot)
+   - Risk Matrix (5 top risks with Likelihood/Impact/Mitigation)
+   - Compliance & Privacy (data handling, GDPR, security requirements)
 
-## Competitive Landscape
-[High-level snapshot of competitors and differentiation]
+2. **Assumptions.md** with:
+   - Unknowns to Verify (3-5 bullet points)
+   - Dependencies (external factors)
+   - Technical Assumptions (platform/stack to validate)
+   - Market Assumptions (audience/demand to verify)
 
-## Risk Matrix
+Requirements:
+- Be specific and actionable
+- Risk Matrix must have real risks with H/M/L ratings
+- Focus on MVP viability, not perfection
+- Compliance notes must address data handling
 
-| Risk | Likelihood | Impact | Mitigation |
-|------|-----------|--------|------------|
-| [Risk 1] | [H/M/L] | [H/M/L] | [Strategy] |
-| [Risk 2] | [H/M/L] | [H/M/L] | [Strategy] |
-| [Risk 3] | [H/M/L] | [H/M/L] | [Strategy] |
-| [Risk 4] | [H/M/L] | [H/M/L] | [Strategy] |
-| [Risk 5] | [H/M/L] | [H/M/L] | [Strategy] |
+Output format: Return TWO markdown documents separated by "---DOCUMENT_SEPARATOR---"
+First document: Business_Logic.md content
+Second document: Assumptions.md content"""
 
-## Compliance & Privacy
-[Data handling posture, GDPR considerations, security requirements]
-"""
-    (artifacts_dir / "Business_Logic.md").write_text(business_logic, encoding="utf-8")
+    logger.info("phase_1_calling_claude", extra={"thread_id": thread_id})
 
-    # Write Assumptions.md
-    assumptions = """# Assumptions & Unknowns
-
-## Unknowns (To Verify)
-- [ ] [Assumption 1 - what needs validation?]
-- [ ] [Assumption 2 - what needs validation?]
-- [ ] [Assumption 3 - what needs validation?]
-
-## Dependencies
-- [External factor or decision we're waiting on]
-
-## Technical Assumptions
-- [Platform/stack assumptions to validate]
-
-## Market Assumptions
-- [Target audience or demand assumptions to verify]
-"""
-    (artifacts_dir / "Assumptions.md").write_text(assumptions, encoding="utf-8")
-
-    logger.info(
-        "phase_1_artifacts_created",
-        extra={"thread_id": thread_id, "artifacts_dir": str(artifacts_dir)},
-    )
+    # Call Claude API
+    try:
+        response = client.messages.create(
+            model=app_config.ANTHROPIC_MODEL,
+            max_tokens=app_config.ANTHROPIC_MAX_TOKENS,
+            messages=[{"role": "user", "content": analysis_prompt}],
+        )
+        
+        # Extract content from response
+        analysis_text = response.content[0].text
+        
+        # Split into two documents
+        if "---DOCUMENT_SEPARATOR---" in analysis_text:
+            business_logic, assumptions = analysis_text.split("---DOCUMENT_SEPARATOR---", 1)
+        else:
+            # Fallback: try to split by "# Assumptions"
+            parts = analysis_text.split("# Assumptions", 1)
+            business_logic = parts[0].strip()
+            assumptions = "# Assumptions" + parts[1].strip() if len(parts) > 1 else ""
+        
+        # Clean up and ensure proper markdown headers
+        business_logic = business_logic.strip()
+        if not business_logic.startswith("# Business Logic"):
+            business_logic = "# Business Logic\n\n" + business_logic
+        
+        assumptions = assumptions.strip()
+        if not assumptions.startswith("# Assumptions"):
+            assumptions = "# Assumptions & Unknowns\n\n" + assumptions
+        
+        # Write artifacts
+        (artifacts_dir / "Business_Logic.md").write_text(business_logic, encoding="utf-8")
+        (artifacts_dir / "Assumptions.md").write_text(assumptions, encoding="utf-8")
+        
+        logger.info(
+            "phase_1_ai_analysis_complete",
+            extra={
+                "thread_id": thread_id,
+                "artifacts_dir": str(artifacts_dir),
+                "prompt_length": len(ceo_prompt),
+                "response_length": len(analysis_text),
+            },
+        )
+    except Exception as e:
+        logger.exception("phase_1_ai_failed", extra={"thread_id": thread_id, "error": str(e)})
+        raise
 
     # Then continue with interrupt logic
     artifact_files = [

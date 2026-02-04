@@ -12,3 +12,4 @@ class PhaseState(TypedDict, total=False):
     messages: Annotated[list[BaseMessage], add_messages]
     current_phase: int  # 1..10
     approved: bool  # True after human approval in Telegram
+    ceo_prompt: str  # CEO's initial idea/prompt for Phase 1 analysis

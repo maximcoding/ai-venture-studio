@@ -79,15 +79,40 @@ async def cmd_help(message: Message) -> None:
 
 @router.message(Command("run"))
 async def cmd_run(message: Message) -> None:
-    """Start pipeline for this user; on interrupt, send approval keyboard."""
+    """Start pipeline for this user; on interrupt, send approval keyboard.
+    
+    Usage:
+      /run <your business idea>
+    
+    Example:
+      /run Build a SaaS platform for freelancers to manage invoices and track time
+    """
     if _graph is None:
         await message.answer("Bot not ready (graph not set).")
         return
+    
+    # Extract CEO prompt from message text (everything after "/run ")
+    ceo_prompt = message.text.replace("/run", "", 1).strip() if message.text else ""
+    if not ceo_prompt:
+        await message.answer(
+            "📝 Please provide your business idea:\n\n"
+            "<code>/run &lt;your business idea&gt;</code>\n\n"
+            "Example:\n"
+            "<code>/run Build a SaaS platform for freelancers to manage invoices</code>",
+            parse_mode="HTML",
+        )
+        return
+    
     thread_id = f"user_{message.from_user.id}" if message.from_user else "default"
     config = {**_default_config, "configurable": {"thread_id": thread_id}}
     try:
         result = await _graph.ainvoke(
-            {"messages": [], "current_phase": 0, "approved": False},
+            {
+                "messages": [],
+                "current_phase": 0,
+                "approved": False,
+                "ceo_prompt": ceo_prompt,
+            },
             config=config,
         )
         if "__interrupt__" in result and result["__interrupt__"]:

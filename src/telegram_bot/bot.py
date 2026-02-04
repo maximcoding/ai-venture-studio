@@ -15,6 +15,70 @@ APPROVE = "approve"
 GO_BACK = "go_back"
 VIEW_DOCS = "view_docs"
 
+# AI Dream Team - personas for each phase
+PHASE_PERSONAS = {
+    1: {
+        "name": "Steve Bobs",
+        "emoji": "🍎",
+        "greeting": "Привет! Я Steve Bobs.\n\nРасскажи мне свою идею — я помогу превратить её в insanely great продукт.\n\nОтправь команду:\n<code>/run &lt;твоя идея&gt;</code>",
+        "completion": "🍎 <b>Steve Bobs</b>\n\nОтличная идея! Я создал бизнес-анализ.\nИзучи документы и дай знать, готов ли двигаться дальше.",
+    },
+    2: {
+        "name": "Smarty Vegan",
+        "emoji": "🥗",
+        "greeting": "Привет! Я Smarty Vegan, product manager.\n\nSteve Bobs передал мне твою идею. Моя задача — превратить её в здоровый, органический MVP без лишних фич.\n\nТолько самое необходимое для первой версии!",
+        "completion": "🥗 <b>Smarty Vegan</b>\n\nГотово! User stories и MVP scope созданы.\nВсё по методологии — чисто и понятно.",
+    },
+    3: {
+        "name": "Johnny Vibe",
+        "emoji": "🎨",
+        "greeting": "Привет! Я Johnny Vibe, дизайнер.\n\nПродукт без великолепного дизайна — это просто код.\nДавай создадим что-то beautiful!",
+        "completion": "🎨 <b>Johnny Vibe</b>\n\nДизайн готов! Каждый пиксель на своём месте.\nЭто будет выглядеть потрясающе.",
+    },
+    4: {
+        "name": "Linus Codevalds",
+        "emoji": "⚙️",
+        "greeting": "Я Linus Codevalds, tech lead.\n\nТеперь моя очередь. Спроектируем надёжную архитектуру.\nБез костылей, только чистая инженерия.",
+        "completion": "⚙️ <b>Linus Codevalds</b>\n\nАрхитектура спроектирована. Система будет масштабироваться.\nПроверь техническую документацию.",
+    },
+    5: {
+        "name": "Dave Railsman",
+        "emoji": "💻",
+        "greeting": "Привет! Я Dave Railsman, CTO.\n\nПора писать код. Будем делать быстро, но правильно.\nConvention over configuration!",
+        "completion": "💻 <b>Dave Railsman</b>\n\nКод написан! Чистый, тестируемый, готовый к деплою.\nПосмотри что получилось.",
+    },
+    6: {
+        "name": "Kelly Cloudtower",
+        "emoji": "☁️",
+        "greeting": "Привет! Я Kelly Cloudtower, DevOps engineer.\n\nПора настроить инфраструктуру и CI/CD.\nВсё будет автоматизировано и в облаках.",
+        "completion": "☁️ <b>Kelly Cloudtower</b>\n\nИнфраструктура готова! Kubernetes, мониторинг, автодеплой.\nПродукт готов к запуску.",
+    },
+    7: {
+        "name": "Kelly Cloudtower",
+        "emoji": "☁️",
+        "greeting": "Я Kelly Cloudtower, продолжаю работу.\n\nТеперь QA и тесты. Проверим каждый сценарий.",
+        "completion": "☁️ <b>Kelly Cloudtower</b>\n\nТесты пройдены! Багов не найдено.\nМожем уверенно двигаться дальше.",
+    },
+    8: {
+        "name": "Bruce Securer",
+        "emoji": "🔐",
+        "greeting": "Привет! Я Bruce Securer, security expert.\n\nБезопасность — это не опция. Проверим все уязвимости.\nХакеры не пройдут!",
+        "completion": "🔐 <b>Bruce Securer</b>\n\nSecurity audit завершён. Все уязвимости закрыты.\nПродукт защищён.",
+    },
+    9: {
+        "name": "Andy Chain",
+        "emoji": "📈",
+        "greeting": "Привет! Я Andy Chain, growth engineer.\n\nПора запускать! Настроим аналитику и метрики.\nБудем расти экспоненциально.",
+        "completion": "📈 <b>Andy Chain</b>\n\nАналитика настроена! Метрики собираются.\nГотовы к запуску.",
+    },
+    10: {
+        "name": "Andy Chain",
+        "emoji": "📈",
+        "greeting": "Я Andy Chain, финальная стадия!\n\nМасштабируем продукт и настраиваем SRE.\n99.9% uptime гарантирован.",
+        "completion": "📈 <b>Andy Chain</b>\n\n🎉 Поздравляю! Продукт готов к production!\n\nВся команда AI Dream Team поработала на отлично.\nТеперь твоя очередь — завоёвывай рынок!",
+    },
+}
+
 router = Router(name="approval")
 
 # Set by run_bot so handlers can resume the graph (no custom kwargs in Aiogram)
@@ -62,10 +126,21 @@ def _approval_keyboard(phase: int, artifact_files: list[str] | None = None) -> I
 @router.message(Command("start"))
 async def cmd_start(message: Message) -> None:
     """Handle /start."""
-    await message.answer(
-        "AI Venture Studio — 10-phase pipeline. Each phase requires your approval in Telegram.",
-        parse_mode=ParseMode.HTML,
+    team_intro = (
+        "🎭 <b>AI Venture Studio — Dream Team</b>\n\n"
+        "Я собрал команду лучших экспертов мира, чтобы помочь тебе создать продукт:\n\n"
+        "🍎 <b>Steve Bobs</b> — Visionary & Business\n"
+        "🥗 <b>Smarty Vegan</b> — Product Manager\n"
+        "🎨 <b>Johnny Vibe</b> — UI/UX Designer\n"
+        "⚙️ <b>Linus Codevalds</b> — Tech Lead\n"
+        "💻 <b>Dave Railsman</b> — CTO & Developer\n"
+        "☁️ <b>Kelly Cloudtower</b> — DevOps & QA\n"
+        "🔐 <b>Bruce Securer</b> — Security Expert\n"
+        "📈 <b>Andy Chain</b> — Growth & SRE\n\n"
+        "Каждый эксперт работает на своей фазе и передаёт эстафету следующему.\n\n"
+        "Используй <code>/run &lt;твоя идея&gt;</code> чтобы начать!"
     )
+    await message.answer(team_intro, parse_mode=ParseMode.HTML)
 
 
 @router.message(Command("help"))
@@ -94,10 +169,11 @@ async def cmd_run(message: Message) -> None:
     # Extract CEO prompt from message text (everything after "/run ")
     ceo_prompt = message.text.replace("/run", "", 1).strip() if message.text else ""
     if not ceo_prompt:
+        # Show Steve Bobs greeting
+        persona = PHASE_PERSONAS[1]
         await message.answer(
-            "📝 Please provide your business idea:\n\n"
-            "<code>/run &lt;your business idea&gt;</code>\n\n"
-            "Example:\n"
+            f"{persona['greeting']}\n\n"
+            "Пример:\n"
             "<code>/run Build a SaaS platform for freelancers to manage invoices</code>",
             parse_mode="HTML",
         )

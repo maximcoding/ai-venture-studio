@@ -10,6 +10,20 @@ from src.graph.state import PhaseState
 
 logger = logging.getLogger(__name__)
 
+# Phase personas for consistent messaging
+PHASE_PERSONA_MESSAGES = {
+    1: "🍎 <b>Steve Bobs</b>\n\nОтличная идея! Я создал бизнес-анализ.\nИзучи документы и дай знать, готов ли двигаться дальше.",
+    2: "🥗 <b>Smarty Vegan</b>\n\nSteve передал мне эстафету! User stories и MVP scope созданы.\nВсё по методологии — чисто и понятно.",
+    3: "🎨 <b>Johnny Vibe</b>\n\nДизайн готов! Каждый пиксель на своём месте.\nЭто будет выглядеть потрясающе.",
+    4: "⚙️ <b>Linus Codevalds</b>\n\nАрхитектура спроектирована. Система будет масштабироваться.\nПроверь техническую документацию.",
+    5: "💻 <b>Dave Railsman</b>\n\nКод написан! Чистый, тестируемый, готовый к деплою.\nПосмотри что получилось.",
+    6: "☁️ <b>Kelly Cloudtower</b>\n\nИнфраструктура готова! Kubernetes, мониторинг, автодеплой.\nПродукт готов к запуску.",
+    7: "☁️ <b>Kelly Cloudtower</b>\n\nТесты пройдены! Багов не найдено.\nМожем уверенно двигаться дальше.",
+    8: "🔐 <b>Bruce Securer</b>\n\nSecurity audit завершён. Все уязвимости закрыты.\nПродукт защищён.",
+    9: "📈 <b>Andy Chain</b>\n\nАналитика настроена! Метрики собираются.\nГотовы к запуску.",
+    10: "📈 <b>Andy Chain</b>\n\n🎉 Поздравляю! Продукт готов к production!\n\nВся команда AI Dream Team поработала на отлично.\nТеперь твоя очередь — завоёвывай рынок!",
+}
+
 PHASE_NAMES = [
     "visionary_business_audit",
     "product_management_backlog_mvp",
@@ -33,11 +47,14 @@ def phase_node(phase_num: int):
         # Stub: in real impl, produce artifacts under artifacts/<thread_id>/docs/ and persist
         # (thread_id from config["configurable"]["thread_id"])
         # interrupt() pauses; on resume, returns Command(resume=...) value
+        persona_message = PHASE_PERSONA_MESSAGES.get(
+            phase_num, f"Phase {phase_num} complete. Approve in Telegram to continue."
+        )
         response = interrupt(
             {
                 "phase": phase_num,
                 "phase_name": PHASE_NAMES[phase_num - 1],
-                "message": f"Phase {phase_num} complete. Approve in Telegram to continue.",
+                "message": persona_message,
             }
         )
         approved = response.get("approved", False) if isinstance(response, dict) else bool(response)
@@ -164,8 +181,7 @@ Second document: Assumptions.md content"""
         {
             "phase": 1,
             "phase_name": "visionary_business_audit",
-            "message": "Phase 1 complete. Review artifacts below.\n\n"
-            "After review, approve to continue to Phase 2.",
+            "message": PHASE_PERSONA_MESSAGES[1],
             "artifact_files": artifact_files,
         }
     )

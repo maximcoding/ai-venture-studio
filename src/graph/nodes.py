@@ -318,8 +318,169 @@ Order: Product_Backlog.md, then MVP_Scope.md, then Sprint_1_TODO.md"""
 
 
 def phase_3(state: PhaseState, config: RunnableConfig) -> dict[str, Any]:
-    """Phase 3 — UI/UX Design."""
-    return phase_node(3)(state, config)
+    """Phase 3 — UI/UX Design (Google Stitch). AI-powered design system generation using Ollama."""
+    import json
+    import requests
+    from pathlib import Path
+    from src.core.config import config as app_config
+
+    thread_id = config.get("configurable", {}).get("thread_id", "default")
+    logger.info("phase_3_start_ai", extra={"phase": 3, "thread_id": thread_id})
+
+    # Prepare artifacts directory
+    artifacts_dir = Path("artifacts") / thread_id / "docs"
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+
+    # Read Phase 2 artifacts
+    mvp_scope_path = artifacts_dir / "MVP_Scope.md"
+    backlog_path = artifacts_dir / "Product_Backlog.md"
+
+    try:
+        mvp_scope = mvp_scope_path.read_text(encoding="utf-8")
+        backlog = backlog_path.read_text(encoding="utf-8")
+    except FileNotFoundError as e:
+        logger.error("phase_3_missing_input", extra={"thread_id": thread_id, "error": str(e)})
+        raise ValueError(f"Phase 2 artifacts not found: {e}")
+
+    # Construct prompt for Ollama
+    design_prompt = f"""You are Johnny Vibe, a world-class UI/UX Designer.
+
+You have been given the following product specifications:
+
+---MVP SCOPE---
+{mvp_scope}
+
+---PRODUCT BACKLOG---
+{backlog}
+
+Your task is to create 4 design documents:
+
+1. **Design_System.md** - Complete design system with:
+   - Brand identity (name suggestions, tagline, tone)
+   - Color palette (primary, secondary, neutrals, semantic colors)
+   - Typography scale (headings, body, captions)
+   - Component library (buttons, inputs, cards, navigation, modals)
+   - Spacing system (grid, margins, padding)
+   - Interaction patterns (hover states, animations, transitions)
+   - Accessibility guidelines (WCAG 2.1 AA)
+
+2. **Design_Tokens.json** - Design tokens in JSON format:
+   - colors: primary, secondary, neutrals, semantic (success/warning/error)
+   - typography: font families, sizes, weights, line heights
+   - spacing: base unit and scale (4px, 8px, 16px, 24px, 32px, 48px, 64px)
+   - borderRadius: none, sm, md, lg, xl, full
+   - shadows: sm, md, lg, xl
+   - breakpoints: mobile, tablet, desktop
+
+3. **UI_Screens_List.md** - Complete list of screens with:
+   - Screen name and purpose
+   - User stories it satisfies
+   - Key components on the screen
+   - States (loading, empty, error, success)
+   - Navigation flow
+   Minimum screens: Auth (login/signup), Home/Dashboard, Primary feature screens, Settings/Profile
+
+4. **Prototype_Link.md** - Prototype information with:
+   - Design tool recommendation (Figma/Stitch)
+   - Screens to prototype
+   - Interactive flows to demonstrate
+   - Link placeholder: "[TO BE CREATED IN FIGMA]"
+   - Instructions for designer to follow
+
+Make the design modern, beautiful, and user-friendly. Consider current UI/UX trends (glassmorphism, micro-interactions, minimalism).
+
+IMPORTANT: Separate each document with the exact marker:
+---DOCUMENT_SEPARATOR---
+
+Order: Design_System.md, then Design_Tokens.json, then UI_Screens_List.md, then Prototype_Link.md"""
+
+    # Call Ollama
+    try:
+        response = requests.post(
+            f"{app_config.OLLAMA_BASE_URL}/api/chat",
+            json={
+                "model": app_config.OLLAMA_MODEL,
+                "messages": [{"role": "user", "content": design_prompt}],
+                "stream": False,
+            },
+            timeout=app_config.OLLAMA_TIMEOUT,
+        )
+        response.raise_for_status()
+        result = response.json()
+        full_text = result["message"]["content"]
+    except Exception as e:
+        logger.exception("phase_3_ollama_failed", extra={"thread_id": thread_id, "error": str(e)})
+        raise
+
+    # Parse the 4 documents
+    try:
+        parts = full_text.split("---DOCUMENT_SEPARATOR---")
+        if len(parts) < 4:
+            raise ValueError(f"Expected 4 documents, got {len(parts)}")
+        
+        design_system = parts[0].strip()
+        design_tokens_text = parts[1].strip()
+        ui_screens = parts[2].strip()
+        prototype_link = parts[3].strip()
+
+        # Write artifacts
+        (artifacts_dir / "Design_System.md").write_text(design_system, encoding="utf-8")
+        (artifacts_dir / "UI_Screens_List.md").write_text(ui_screens, encoding="utf-8")
+        (artifacts_dir / "Prototype_Link.md").write_text(prototype_link, encoding="utf-8")
+        
+        # Extract and write Design_Tokens.json
+        # Try to find JSON in the text (it might be wrapped in markdown code blocks)
+        import re
+        json_match = re.search(r'```json\s*(\{.*?\})\s*```', design_tokens_text, re.DOTALL)
+        if json_match:
+            tokens_json = json_match.group(1)
+        elif design_tokens_text.strip().startswith('{'):
+            # Already JSON, just extract it
+            tokens_json = design_tokens_text.strip()
+        else:
+            # Try to find any JSON object
+            json_match = re.search(r'(\{.*\})', design_tokens_text, re.DOTALL)
+            if json_match:
+                tokens_json = json_match.group(1)
+            else:
+                raise ValueError("Could not extract JSON from Design_Tokens")
+        
+        # Validate JSON
+        tokens_data = json.loads(tokens_json)
+        (artifacts_dir / "Design_Tokens.json").write_text(
+            json.dumps(tokens_data, indent=2), encoding="utf-8"
+        )
+
+        logger.info(
+            "phase_3_artifacts_written",
+            extra={
+                "thread_id": thread_id,
+                "design_system_len": len(design_system),
+                "tokens_keys": list(tokens_data.keys()) if isinstance(tokens_data, dict) else "not_dict",
+                "screens_len": len(ui_screens),
+            },
+        )
+    except Exception as e:
+        logger.exception("phase_3_parse_failed", extra={"thread_id": thread_id, "error": str(e)})
+        raise
+
+    # Then continue with interrupt logic
+    artifact_files = [
+        str(artifacts_dir / "Design_System.md"),
+        str(artifacts_dir / "Design_Tokens.json"),
+        str(artifacts_dir / "UI_Screens_List.md"),
+        str(artifacts_dir / "Prototype_Link.md"),
+    ]
+    response = interrupt(
+        {
+            "phase": 3,
+            "phase_name": "ui_ux_design_google_stitch",
+            "message": PHASE_PERSONA_MESSAGES[3],
+            "artifact_files": artifact_files,
+        }
+    )
+    approved = response.get("approved", False) if isinstance(response, dict) else bool(response)
+    return {"current_phase": 3, "approved": approved}
 
 
 def phase_4(state: PhaseState, config: RunnableConfig) -> dict[str, Any]:

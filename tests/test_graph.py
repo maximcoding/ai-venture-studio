@@ -345,6 +345,193 @@ async def test_phase_2_creates_artifacts(tmp_path: Path, monkeypatch: pytest.Mon
 
 
 @pytest.mark.asyncio
+async def test_phase_3_creates_artifacts(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Phase 3 reads Phase 2 artifacts and creates 4 Phase 3 design artifacts."""
+    from unittest.mock import MagicMock
+
+    from langgraph.checkpoint.memory import InMemorySaver
+    from langgraph.types import Command
+
+    # Setup Phase 1 and Phase 2 artifacts manually
+    artifacts_dir = tmp_path / "artifacts" / "test-user-phase3" / "docs"
+    artifacts_dir.mkdir(parents=True, exist_ok=True)
+    (artifacts_dir / "Business_Logic.md").write_text("# Business Logic\n\nTest business")
+    (artifacts_dir / "Assumptions.md").write_text("# Assumptions\n\nTest assumptions")
+    (artifacts_dir / "Product_Backlog.md").write_text("# Product Backlog\n\nUser stories")
+    (artifacts_dir / "MVP_Scope.md").write_text("# MVP Scope\n\nIN SCOPE: Features")
+    (artifacts_dir / "Sprint_1_TODO.md").write_text("# Sprint 1\n\nTasks")
+
+    # Mock Ollama API - Phase 1, 2, 3 responses
+    phase1_response = {
+        "message": {"content": "# Business Logic\nTest\n---DOCUMENT_SEPARATOR---\n# Assumptions\nTest"}
+    }
+    phase2_response = {
+        "message": {"content": "# Product Backlog\nTest\n---DOCUMENT_SEPARATOR---\n# MVP Scope\nTest\n---DOCUMENT_SEPARATOR---\n# Sprint 1\nTest"}
+    }
+    phase3_response = {
+        "message": {
+            "content": """# Design System
+
+## Brand Identity
+Modern SaaS Design
+
+## Colors
+- Primary: Blue #0066CC
+- Secondary: Green #00CC66
+
+## Typography
+- Headings: Inter Bold
+- Body: Inter Regular
+
+## Components
+- Buttons: Rounded, shadow
+- Cards: White background, border
+
+---DOCUMENT_SEPARATOR---
+
+```json
+{
+  "colors": {
+    "primary": "#0066CC",
+    "secondary": "#00CC66",
+    "neutral": {
+      "50": "#F9FAFB",
+      "900": "#111827"
+    }
+  },
+  "typography": {
+    "fontFamily": {
+      "sans": "Inter, sans-serif"
+    },
+    "fontSize": {
+      "base": "16px",
+      "lg": "18px"
+    }
+  },
+  "spacing": {
+    "base": "4px",
+    "scale": [4, 8, 16, 24, 32, 48, 64]
+  },
+  "borderRadius": {
+    "sm": "4px",
+    "md": "8px",
+    "lg": "12px"
+  }
+}
+```
+
+---DOCUMENT_SEPARATOR---
+
+# UI Screens List
+
+## 1. Login Screen
+- **Purpose**: User authentication
+- **Components**: Email input, password input, login button
+- **States**: idle, loading, error
+
+## 2. Dashboard
+- **Purpose**: Main hub
+- **Components**: Navigation, stats cards, action buttons
+
+## 3. Settings
+- **Purpose**: User preferences
+- **Components**: Profile form, preferences toggle
+
+---DOCUMENT_SEPARATOR---
+
+# Prototype Link
+
+## Design Tool: Figma
+
+## Screens to Prototype
+1. Login flow
+2. Dashboard navigation
+3. Primary feature interaction
+
+## Link
+[TO BE CREATED IN FIGMA]
+
+## Instructions
+Create interactive prototype in Figma with:
+- Click-through flows
+- Hover states
+- Micro-interactions"""
+        }
+    }
+
+    call_count = 0
+    def mock_post_side_effect(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        mock_response = MagicMock()
+        if call_count == 1:
+            mock_response.json.return_value = phase1_response
+        elif call_count == 2:
+            mock_response.json.return_value = phase2_response
+        else:
+            mock_response.json.return_value = phase3_response
+        mock_response.raise_for_status = MagicMock()
+        return mock_response
+    
+    monkeypatch.setattr("requests.post", mock_post_side_effect)
+
+    # Change to tmp directory for test isolation
+    import os
+    original_cwd = os.getcwd()
+    os.chdir(tmp_path)
+
+    try:
+        checkpointer = InMemorySaver()
+        graph = build_workflow(checkpointer)
+
+        config = {"configurable": {"thread_id": "test-user-phase3"}}
+        initial: PhaseState = {
+            "messages": [],
+            "current_phase": 0,
+            "approved": False,
+            "ceo_prompt": "Build design system for SaaS",
+        }
+
+        # Phase 1 interrupts
+        result1 = await graph.ainvoke(initial, config=config)
+        assert "__interrupt__" in result1
+
+        # Resume Phase 1 -> Phase 2 interrupts
+        result2 = await graph.ainvoke(Command(resume={"approved": True}), config=config)
+        assert "__interrupt__" in result2
+        assert result2["__interrupt__"][0].value.get("phase") == 2
+
+        # Resume Phase 2 -> Phase 3 runs and interrupts
+        result3 = await graph.ainvoke(Command(resume={"approved": True}), config=config)
+        assert "__interrupt__" in result3
+        assert result3["__interrupt__"][0].value.get("phase") == 3
+
+        # Check Phase 3 artifacts were created
+        assert (artifacts_dir / "Design_System.md").exists()
+        assert (artifacts_dir / "Design_Tokens.json").exists()
+        assert (artifacts_dir / "UI_Screens_List.md").exists()
+        assert (artifacts_dir / "Prototype_Link.md").exists()
+
+        # Check content
+        design_system = (artifacts_dir / "Design_System.md").read_text()
+        assert "Design System" in design_system or "Brand" in design_system
+
+        # Check Design_Tokens.json is valid JSON
+        import json
+        tokens = json.loads((artifacts_dir / "Design_Tokens.json").read_text())
+        assert "colors" in tokens
+        assert "typography" in tokens or "spacing" in tokens
+
+        screens = (artifacts_dir / "UI_Screens_List.md").read_text()
+        assert "Screen" in screens or "Login" in screens or "Dashboard" in screens
+
+        prototype = (artifacts_dir / "Prototype_Link.md").read_text()
+        assert "Prototype" in prototype or "Figma" in prototype or "FIGMA" in prototype
+    finally:
+        os.chdir(original_cwd)
+
+
+@pytest.mark.asyncio
 async def test_phase_to_phase_transition(monkeypatch: pytest.MonkeyPatch) -> None:
     """Approving Phase 1 triggers Phase 2 interrupt."""
     from unittest.mock import MagicMock

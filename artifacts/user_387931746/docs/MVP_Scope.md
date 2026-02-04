@@ -1,30 +1,42 @@
-```
-
 **MVP_Scope.md**
-```
+
+# MVP Scope
+
 ## IN SCOPE
 
-### Personalized Meal Planning
-As our core feature, personalized meal planning will be developed first. This includes:
-	+ Algorithmic meal generation based on user preferences and dietary needs.
-	+ Integration with grocery delivery services for seamless ordering.
+* Personalized meal planning based on user dietary preferences and ingredient availability
+* Integration with popular grocery delivery services for seamless ordering
+* Social sharing features to discover new recipes
 
-### Social Sharing Features
-Users can share their favorite recipes on social media platforms (e.g. Facebook, Instagram).
+### Justification:
 
-### Basic User Profile Management
-Users can create profiles, manage dietary preferences, and access past meal plans.
+* These core features align with the primary pain points of our target audience (Busy Professionals).
+* They provide a solid foundation for future development and differentiation from existing meal planning apps.
 
 ## OUT OF SCOPE
 
-* Advanced features like integration with popular fitness tracking apps.
-* Exclusive recipe content from professional chefs or food influencers.
-* Advanced data analysis for improved algorithmic performance (e.g. machine learning-based nutrition planning).
+* Advanced analytics and data visualization for user behavior insights
+* AI-powered recipe suggestion based on user preferences and ingredient availability
+* In-app payment processing for subscription-based model
 
-## Success Metrics
-MVP will be considered successful if:
-	+ 75% of users report a reduction in meal planning time by at least 30 minutes per week.
-	+ 80% of users report an increase in healthy eating habits due to the app's guidance.
+### Justification:
 
-## Technical Constraints
-MVP will use cloud-based infrastructure for scalability and reliability. Development will prioritize using established machine learning libraries (e.g. TensorFlow, PyTorch).
+* These features, while desirable, are secondary to the core MVP scope.
+* They require significant development effort and may be postponed to future releases.
+
+## Success Metrics for MVP
+
+* User retention rate: 70% within the first month
+* Average daily active users: 10,000
+* Customer satisfaction rating (CSAT): 4.5/5
+
+### Technical Constraints:
+
+* Development team size and skillset limitations
+* Integration with partner grocery delivery services' APIs
+* Database scalability requirements for storing user data
+
+## Timeline Assumptions:
+
+* MVP development will take approximately 12 weeks.
+* Testing and iteration will occur concurrently with development.

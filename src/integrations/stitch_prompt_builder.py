@@ -273,19 +273,46 @@ class StitchPromptBuilder:
             Parsed design strategy dict
         """
         import re
+        import logging
+        
+        logger = logging.getLogger(__name__)
 
-        # Try to find JSON in output (might be wrapped in markdown)
-        json_match = re.search(r"```json\s*(\{.*?\})\s*```", ollama_output, re.DOTALL)
+        # Strategy 1: Try to find JSON in markdown code block
+        json_match = re.search(r"```(?:json)?\s*(\{[\s\S]*?\})\s*```", ollama_output, re.DOTALL)
         if json_match:
             json_str = json_match.group(1)
-        elif ollama_output.strip().startswith("{"):
-            json_str = ollama_output.strip()
-        else:
-            # Try to find any JSON object
-            json_match = re.search(r"(\{.*\})", ollama_output, re.DOTALL)
-            if json_match:
-                json_str = json_match.group(1)
-            else:
-                raise ValueError("Could not extract JSON from Ollama output")
-
-        return json.loads(json_str)
+            try:
+                return json.loads(json_str)
+            except json.JSONDecodeError as e:
+                logger.warning(f"JSON decode failed for markdown block: {e}")
+        
+        # Strategy 2: Try to find raw JSON (starts with {)
+        if ollama_output.strip().startswith("{"):
+            try:
+                return json.loads(ollama_output.strip())
+            except json.JSONDecodeError as e:
+                logger.warning(f"JSON decode failed for raw JSON: {e}")
+        
+        # Strategy 3: Try to find any JSON object (greedy match)
+        json_match = re.search(r"(\{[\s\S]*\})", ollama_output, re.DOTALL)
+        if json_match:
+            json_str = json_match.group(1)
+            # Clean up potential trailing text after }
+            try:
+                # Try to find the end of the first complete JSON object
+                depth = 0
+                for i, char in enumerate(json_str):
+                    if char == '{':
+                        depth += 1
+                    elif char == '}':
+                        depth -= 1
+                        if depth == 0:
+                            json_str = json_str[:i+1]
+                            break
+                return json.loads(json_str)
+            except (json.JSONDecodeError, ValueError) as e:
+                logger.warning(f"JSON decode failed for greedy match: {e}")
+        
+        # Strategy 4: Log failure and provide minimal fallback
+        logger.error(f"Could not extract JSON from Ollama output. First 500 chars: {ollama_output[:500]}")
+        raise ValueError(f"Could not extract JSON from Ollama output (length: {len(ollama_output)})")

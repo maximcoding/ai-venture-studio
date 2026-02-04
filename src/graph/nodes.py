@@ -448,7 +448,7 @@ Order: Design_Strategy.json, Design_System.md, Design_Tokens.json, UI_Screens_Li
     try:
         parts = full_text.split("---DOCUMENT_SEPARATOR---")
         if len(parts) < 5:
-            logger.warning("phase_3_incomplete_documents", extra={"got": len(parts), "expected": 5})
+            logger.warning("phase_3_incomplete_documents", extra={"got": len(parts), "expected": 5, "thread_id": thread_id})
             # Pad with defaults if needed
             while len(parts) < 5:
                 parts.append("")
@@ -458,6 +458,15 @@ Order: Design_Strategy.json, Design_System.md, Design_Tokens.json, UI_Screens_Li
         design_tokens_text = parts[2].strip()
         ui_screens = parts[3].strip()
         refinement_guide = parts[4].strip() if len(parts) > 4 else ""
+
+        logger.info(
+            "phase_3_parsing_design_strategy",
+            extra={
+                "thread_id": thread_id,
+                "design_strategy_length": len(design_strategy_text),
+                "design_strategy_preview": design_strategy_text[:200],
+            },
+        )
 
         # Parse Design_Strategy.json
         design_strategy = StitchPromptBuilder.parse_design_strategy(design_strategy_text)

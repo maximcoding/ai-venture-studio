@@ -1,11 +1,12 @@
 """Aiogram bot: /start, /help, approval callback with inline buttons."""
 
 import logging
+from pathlib import Path
 from typing import Any
 
 from aiogram import Bot, Dispatcher, F, Router
 from aiogram.filters import Command
-from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup, Message
+from aiogram.types import CallbackQuery, FSInputFile, InlineKeyboardButton, InlineKeyboardMarkup, Message
 from aiogram.enums import ParseMode
 
 logger = logging.getLogger(__name__)
@@ -19,6 +20,19 @@ router = Router(name="approval")
 # Set by run_bot so handlers can resume the graph (no custom kwargs in Aiogram)
 _graph: Any = None
 _default_config: dict[str, Any] = {}
+
+
+async def _send_artifact_files(message: Message, file_paths: list[str]) -> None:
+    """Send artifact files as documents to the user."""
+    for file_path in file_paths:
+        path = Path(file_path)
+        if path.exists() and path.is_file():
+            try:
+                document = FSInputFile(file_path)
+                await message.answer_document(document, caption=f"📄 {path.name}")
+            except Exception as e:
+                logger.warning("failed_to_send_file", extra={"file": file_path, "error": str(e)})
+                await message.answer(f"⚠️ Could not send file: {path.name}")
 
 
 def _approval_keyboard(phase: int) -> InlineKeyboardMarkup:
@@ -70,6 +84,12 @@ async def cmd_run(message: Message) -> None:
             payload = getattr(inter, "value", inter) or {}
             phase = payload.get("phase", 1)
             msg_text = payload.get("message", "Approve to continue.")
+            artifact_files = payload.get("artifact_files", [])
+            
+            # Send artifact files first
+            await _send_artifact_files(message, artifact_files)
+            
+            # Then send message with approval buttons
             await message.answer(msg_text, reply_markup=_approval_keyboard(phase))
         else:
             await message.answer("Pipeline step completed (no interrupt).")
@@ -102,7 +122,13 @@ async def handle_approve(callback: CallbackQuery) -> None:
         payload = getattr(inter, "value", inter) or {}
         next_phase = payload.get("phase", int(phase) + 1)
         msg_text = payload.get("message", "Approve to continue.")
+        artifact_files = payload.get("artifact_files", [])
+        
         if callback.message:
+            # Send artifact files first
+            await _send_artifact_files(callback.message, artifact_files)
+            
+            # Then send message with approval buttons
             await callback.message.answer(msg_text, reply_markup=_approval_keyboard(next_phase))
 
 

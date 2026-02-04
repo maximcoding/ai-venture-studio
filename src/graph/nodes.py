@@ -120,13 +120,18 @@ def phase_1(state: PhaseState, config: RunnableConfig) -> dict[str, Any]:
     )
 
     # Then continue with interrupt logic
+    artifact_files = [
+        str(artifacts_dir / "Business_Logic.md"),
+        str(artifacts_dir / "Assumptions.md"),
+    ]
     response = interrupt(
         {
             "phase": 1,
             "phase_name": "visionary_business_audit",
-            "message": f"Phase 1 complete. Artifacts created at artifacts/{thread_id}/docs/\n\n"
-            "✅ `Business_Logic.md`\n✅ `Assumptions.md`\n\n"
-            "Approve to continue to Phase 2.",
+            "message": f"Phase 1 complete. Review artifacts:\n\n"
+            "📄 `Business_Logic.md`\n📄 `Assumptions.md`\n\n"
+            "After review, approve to continue to Phase 2.",
+            "artifact_files": artifact_files,
         }
     )
     approved = response.get("approved", False) if isinstance(response, dict) else bool(response)

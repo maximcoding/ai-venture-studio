@@ -29,7 +29,7 @@ async def _send_artifact_files(message: Message, file_paths: list[str]) -> None:
         if path.exists() and path.is_file():
             try:
                 document = FSInputFile(file_path)
-                await message.answer_document(document, caption=f"📄 {path.name}")
+                await message.answer_document(document)
             except Exception as e:
                 logger.warning("failed_to_send_file", extra={"file": file_path, "error": str(e)})
                 await message.answer(f"⚠️ Could not send file: {path.name}")

@@ -471,12 +471,22 @@ Order: Design_Strategy.json, Design_System.md, Design_Tokens.json, UI_Screens_Li
         # Parse Design_Strategy.json
         design_strategy = StitchPromptBuilder.parse_design_strategy(design_strategy_text)
         
-        # Write artifacts
+        # Write artifacts with fallback for empty content
         (artifacts_dir / "Design_Strategy.json").write_text(
             json.dumps(design_strategy, indent=2), encoding="utf-8"
         )
+        
+        # Design System - fallback if empty
+        if not design_system:
+            design_system = "# Design System\n\n⚠️ Ollama did not generate this document. Please regenerate or create manually."
         (artifacts_dir / "Design_System.md").write_text(design_system, encoding="utf-8")
+        
+        # UI Screens List - fallback if empty
+        if not ui_screens:
+            ui_screens = "# UI Screens List\n\n⚠️ Ollama did not generate this document. Please regenerate or create manually."
         (artifacts_dir / "UI_Screens_List.md").write_text(ui_screens, encoding="utf-8")
+        
+        # Refinement Guide - optional
         if refinement_guide:
             (artifacts_dir / "Stitch_Refinement_Guide.md").write_text(refinement_guide, encoding="utf-8")
         

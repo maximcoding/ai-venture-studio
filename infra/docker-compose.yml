@@ -12,6 +12,13 @@ services:
     environment:
       - PG_CONNECTION_STRING=postgresql://venture:venture@postgres:5432/venture_studio
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.1:8b}
+      - OLLAMA_TIMEOUT=${OLLAMA_TIMEOUT:-120}
+      - GOOGLE_STITCH_API_KEY=${GOOGLE_STITCH_API_KEY}
+      - GOOGLE_STITCH_BASE_URL=${GOOGLE_STITCH_BASE_URL:-https://stitch.google.com}
+      - GOOGLE_STITCH_TIMEOUT=${GOOGLE_STITCH_TIMEOUT:-120}
+      - GOOGLE_STITCH_ENABLED=${GOOGLE_STITCH_ENABLED:-true}
     restart: unless-stopped
     volumes:
       - ../artifacts:/app/artifacts

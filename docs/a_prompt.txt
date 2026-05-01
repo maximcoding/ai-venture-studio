@@ -1,8 +1,0 @@
-Read docs/PHASES_INDEX.md and 
-apply 
-.cursor/rules/00-global.mdc 
-+ 10-python-fastapi.mdc 
-+ 40-testing-visualqa.mdc. 
-Execute Phase 5 now: evaluate the 3 cloned candidate repos (inside /refs if needed),
-fill docs/Foundation_Template.md with a scored decision, 
-then implement the base skeleton under /src (or adapt chosen base) with docker-compose + .env.example + CI + Makefile targets boot/test/lint. Output exact commands to boot and run tests.

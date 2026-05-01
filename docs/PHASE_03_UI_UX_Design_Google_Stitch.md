@@ -1,133 +1,125 @@
-# docs/PHASE_03_UI_UX_Design_Google_Stitch.md
+# Phase 3 — UI/UX Design (Google Stitch via MCP)
 
-## Phase 3 — UI/UX Design (Google Stitch Integration)
+[Goal] Implement Phase 3 “Google Stitch via MCP” end-to-end automation in our factory repo.
+[Context] Bot runs in Docker. We must generate Stitch project + screens automatically and deliver link + screenshots to Telegram. No manual copy/paste. Per-run outputs live only under artifacts/<thread_id>/.
+[Repo] Use stitch-mcp (Node MCP server) as the Stitch integration. Spawn it from Python via stdio MCP client.
+[Required Changes]
+1) Update docs/PHASE_03_UI_UX_Design_Google_Stitch.md to exactly match the attached spec (manifest.json + optional screenshots, buttons: APPROVE DESIGN / REFINE SCREEN / GO BACK / VIEW STATUS).
+2) Implement src/phase_03.py:
+   - Build a single Stitch prompt from MVP_Scope + Product_Backlog
+   - Spawn MCP server: STITCH_MCP_CMD + STITCH_MCP_ARGS (default: npx -y stitch-mcp)
+   - Call tools: create_project → generate_screen_from_text for each P0 screen → list_screens → fetch_screen_image
+   - Persist artifacts to artifacts/<thread_id>/stitch/manifest.json and screenshots to artifacts/<thread_id>/stitch/screens/
+   - Return payload containing stitch_url + screenshot paths for Telegram delivery
+3) Implement Telegram UX:
+   - After Phase 3 completes, send stitch_url + screenshots + short summary
+   - Add button REFINE SCREEN: user selects screen + instruction, regenerate only that screen, re-fetch screenshot, update manifest.json, resend screenshot
+4) Docker:
+   - Ensure the bot container can run node+npx and spawn stitch-mcp
+   - Add env vars: GOOGLE_CLOUD_PROJECT, GOOGLE_APPLICATION_CREDENTIALS, STITCH_MCP_CMD, STITCH_MCP_ARGS
+   - Mount credentials as secret (no commit)
+[Constraints]
+- Keep file outputs minimal: only manifest.json + optional screenshots
+- Never write product outputs into factory /docs
+- No Gemini / external providers required for Phase 3
+[Done When]
+- Running Phase 3 creates a real Stitch project and posts link + screenshots to Telegram
+- REFINE SCREEN regenerates and posts updated screenshot
+- manifest.json is always updated and auditable (prompt_used + stitch_url + screen_index)
 
-### Objective
-Produce an approved visual direction, tokenized design system, and interactive prototype using AI-powered design tools.
 
-### Primary Outputs (per-run artifacts)
-- `artifacts/<thread_id>/docs/Design_Strategy.json` — Structured strategy for Stitch
-- `artifacts/<thread_id>/docs/Design_System.md` — Complete design system documentation
-- `artifacts/<thread_id>/docs/Design_Tokens.json` — Design tokens (colors, typography, spacing, etc.)
-- `artifacts/<thread_id>/docs/UI_Screens_List.md` — Detailed screen specifications
-- `artifacts/<thread_id>/docs/Stitch_Prompt.txt` — Generated Stitch prompt for reproducibility
-- `artifacts/<thread_id>/docs/Stitch_Refinement_Guide.md` — Common refinement examples
-- `artifacts/<thread_id>/docs/Prototype_Link.md` — Interactive prototype URL (Stitch/Figma)
-- `artifacts/<thread_id>/assets/ui/*.png` — Generated screen screenshots
+## Objective
+Fully automate UI generation in Google Stitch:
+- Bot generates a Stitch prompt from MVP scope.
+- Bot calls Stitch through MCP (no manual copy/paste).
+- Bot returns: Stitch project link + screenshots in Telegram.
+- CEO can request refinements per screen inside Phase 3.
 
-Where `<thread_id>` = LangGraph configurable thread_id (Telegram user/session identifier).
+## Non-Negotiables
+- Works from Docker (bot runs in container).
+- Uses Stitch MCP (MCP server + MCP client).
+- No external paid LLM providers required for this phase.
+- Telegram is the only control plane.
 
-### Inputs
-- `artifacts/<thread_id>/docs/MVP_Scope.md` (from Phase 2)
-- `artifacts/<thread_id>/docs/Product_Backlog.md` (from Phase 2)
+## Inputs (per-run)
+- `artifacts/<thread_id>/docs/MVP_Scope.md`
+- `artifacts/<thread_id>/docs/Product_Backlog.md`
 
-### Workflow
+Where:
+- `<thread_id>` = LangGraph `configurable.thread_id` (Telegram session/user id)
 
-#### STEP 1: Design Strategy Generation (Ollama)
-Ollama analyzes MVP scope and backlog to create structured `Design_Strategy.json`:
-- High-level concept (following [Stitch best practices](https://www.adosolve.co.in/post/stitch-prompt-guide))
-- Vibe adjectives (influences colors, fonts, imagery)
-- Target audience personas
-- Color approach (specific colors OR mood-based palette)
-- Typography style (playful/elegant/corporate)
-- Border style (rounded/sharp/minimal)
-- Image style and descriptions
-- Screen-by-screen breakdown with UI/UX keywords
+## Primary Outputs (per-run)
+Keep outputs minimal and auditable:
 
-#### STEP 2: Stitch Prompt Construction
-`StitchPromptBuilder` creates optimized prompt following article structure:
-1. **High-Level Concept**: "An app for [audience] to [functionality]"
-2. **Vibe Adjectives**: "A [adjective1] and [adjective2] app"
-3. **Screens List**: Screen-by-screen with UI/UX keywords (navigation bar, CTA button, etc.)
-4. **Theme Specifics**: Colors, fonts, borders
-5. **Image Descriptions**: Style and mood alignment
+- `artifacts/<thread_id>/stitch/manifest.json`
+  - stitch_project_id
+  - stitch_url
+  - screen_index (ordered P0 first)
+  - prompt_used (exact text sent to Stitch)
+  - design_context (if extracted)
+  - exported_assets (paths to screenshots if fetched)
 
-#### STEP 3: Google Stitch API Call
-If `GOOGLE_STITCH_ENABLED=true`:
-- Calls Stitch API with structured prompt
-- Receives: project_id, preview_url, screenshot URLs
-- Downloads all screenshots to `assets/ui/`
-- Generates `Prototype_Link.md` with real Stitch URL
+- `artifacts/<thread_id>/stitch/screens/*.png` (optional, if MCP can fetch images)
 
-If Stitch disabled or fails:
-- Falls back to text-only mode
-- Saves Stitch prompt for manual use
-- Prototype_Link.md includes manual instructions
+## How it works (automated)
 
-#### STEP 4: Telegram Delivery
-CEO receives in Telegram:
-- 📄 Design documentation files (Design_System.md, Design_Tokens.json, etc.)
-- 🖼️ Screenshots (as photos with captions)
-- 🔗 Interactive prototype link (in message or Prototype_Link.md)
-- 🔘 Special Phase 3 buttons:
-  - **✅ APPROVE DESIGN** — proceed to Phase 4
-  - **🔁 REFINE SCREEN** — make incremental changes to specific screens
-  - **🎨 CHANGE THEME** — update colors/fonts/borders across all screens
-  - **🔙 GO BACK** — return to Phase 2
+### Step 1 — Build the Stitch prompt
+Generate a single prompt that contains:
+- App concept (1 paragraph)
+- Visual style rules (colors/typography/spacing mood)
+- Navigation model (tabs/stack/etc.)
+- Screen list (P0 first)
+- Per-screen requirements (components + states: loading/empty/error/success)
 
-### Refinement Loop (Iterative Design)
+### Step 2 — Call Stitch MCP from Docker
+The bot runs an MCP client that spawns the Stitch MCP server (Node) via stdio.
 
-Following [Stitch best practices](https://www.adosolve.co.in/post/stitch-prompt-guide):
+MCP tools used (from stitch-mcp):
+- `create_project(name, description)`
+- `generate_screen_from_text(projectId, text, screenName)`
+- `list_screens(projectId)`
+- `fetch_screen_image(projectId, screenId)`
+- `extract_design_context(projectId, screenId)` (optional for style consistency)
+- `fetch_screen_code(projectId, screenId)` (optional for debugging)
 
-**Best Practices:**
-- Make 1-2 changes at a time (easier to measure impact)
-- Be specific with screen/component names
-- Use UI/UX keywords (button, header, navigation, card, CTA)
-- Reference elements precisely ("primary button on sign-up form")
+### Step 3 — Deliver to Telegram (review UX)
+Bot sends:
+- Stitch URL (clickable)
+- Screenshot gallery (one message per screen or grouped)
+- Short “HLD-level” summary (not the whole prompt)
 
-**Example Refinements:**
-- "On homepage, add search bar to header"
-- "Change primary CTA button to be larger and use brand blue"
-- "Update login screen background to light gradient"
+Buttons:
+- [✅ APPROVE DESIGN]
+- [🛠️ REFINE SCREEN]
+- [🔙 GO BACK TO PHASE 2]
+- [📄 VIEW STATUS]
 
-**Example Theme Changes:**
-- Colors: "Change primary color to forest green" OR "Update theme to warm color palette"
-- Fonts: "Use playful sans-serif font" OR "Change headings to elegant serif"
-- Borders: "Make all buttons fully rounded corners"
+### Step 4 — Refinement loop (within Phase 3)
+When CEO taps [🛠️ REFINE SCREEN]:
+1) Bot asks: screen name + change request (one message).
+2) Bot regenerates ONLY that screen using:
+   - prior design_context (if available)
+   - prior prompt constraints
+3) Bot re-fetches screenshot(s)
+4) Bot posts updated screenshot + keeps same Stitch project link
 
-### Configuration
+Repeat until approved.
 
-Set in `.env`:
-```bash
-# Google Stitch Integration
-GOOGLE_STITCH_API_KEY=your_api_key_here
-GOOGLE_STITCH_BASE_URL=https://stitch.google.com
-GOOGLE_STITCH_TIMEOUT=120
-GOOGLE_STITCH_ENABLED=true  # Set to 'false' for text-only fallback
-```
+## DoD (Approval Gate)
+- [ ] Stitch project created and URL returned
+- [ ] All P0 screens generated
+- [ ] Telegram received screenshots for P0 screens (or at least confirmation + URL if screenshots unavailable)
+- [ ] `manifest.json` exists with prompt_used + stitch_url + screen_index
+- [ ] Refinement path works: “REFINE SCREEN → regenerate → new screenshot”
 
-### Must-Define in Design
-- Key screens (minimum): Auth, Home/Dashboard, Primary flow screen(s), Settings/Profile
-- UI states: loading / empty / error / success
-- Responsive rules (mobile, tablet, desktop breakpoints)
-- Component specifications with UI/UX keywords
-- Accessibility guidelines (WCAG 2.1 AA)
+## Config
+Environment (Docker):
+- `GOOGLE_CLOUD_PROJECT` = GCP project id
+- `GOOGLE_APPLICATION_CREDENTIALS` = path to service account json inside container
+- `STITCH_MCP_CMD` = command to run MCP server (default: `npx`)
+- `STITCH_MCP_ARGS` = args (default: `-y stitch-mcp`)
 
-### DoD Checklist (Approval Gate)
-- [ ] Interactive prototype link is available (Stitch preview URL)
-- [ ] Screenshots of all key screens delivered to Telegram
-- [ ] `Design_System.md` defines components + interaction patterns
-- [ ] `Design_Tokens.json` is complete and stable
-- [ ] `Design_Strategy.json` structured for Stitch integration
-- [ ] Screen list covers all MVP P0 flows
-- [ ] Stitch prompt saved for reproducibility/refinements
-
-### Telegram Completion Message
-Johnny Vibe sends:
-- ✅ Artifacts: Design_System.md, Design_Tokens.json, Prototype_Link.md, screenshots
-- 🖼️ Screens: Login.png, Dashboard.png, Settings.png (inline photos)
-- 🔗 Interactive Prototype: [Stitch URL] (clickable)
-- Buttons: [✅ APPROVE DESIGN] [🔁 REFINE SCREEN] [🎨 CHANGE THEME] [🔙 GO BACK TO PHASE 2] [📄 VIEW DOCS]
-
-### Error Handling & Fallback
-If Stitch API fails or is disabled:
-- Phase continues with text-only artifacts
-- `Prototype_Link.md` includes manual design instructions
-- `Stitch_Prompt.txt` saved for manual Stitch use
-- CEO can still review and approve design specifications
-- No screenshots generated (manual design in Figma required)
-
-### References
-- [Stitch Prompt Guide - Best Practices](https://www.adosolve.co.in/post/stitch-prompt-guide-effective-prompting-for-better-ui-ux-designs)
-- Google Stitch API Documentation
-- Design Tokens Specification (W3C)
+Notes:
+- No manual Stitch steps.
+- No UI files in factory `/docs`.
+- Everything here is per-run under `artifacts/<thread_id>/`.

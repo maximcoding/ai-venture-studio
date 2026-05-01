@@ -1,9 +1,13 @@
 # docs/PHASE_05_Project_Initialization_Materialization.md
-
 ## Phase 5 — Project Initialization (Materialization)
+
+Note: "REFINE" is a loop action for the current phase, not a pipeline phase. Phase 5 starts only after Phase 4 is APPROVED.
 
 ### Objective
 Materialize the project repository and runtime environment: structure, docs, infra scaffold, CI baseline, and initial code skeleton.
+
+### How
+Starter repo fit check (Foundation_Template); Cursor @Terminal for Docker/CI; Cursor Apply for skeleton; ensure artifacts volume-mounted.
 
 ### Mandatory Step: Starter Repo Fit Check
 Evaluate these candidates as base codebases (≥90% fit → adopt):
@@ -26,6 +30,8 @@ If <90% fit:
 ### Inputs
 - Phase 1–4 docs
 - Roadmap + chosen stack
+
+**Phase 5 bootstrap prompt:** A copy-paste prompt for "run Phase 5 now" is in [docs/prompts/phase5_bootstrap.txt](prompts/phase5_bootstrap.txt).
 
 ### Cursor-First Workflow
 - **Cursor @Terminal**: generate/validate Dockerfiles, compose, CI YAML; run bootstrap commands

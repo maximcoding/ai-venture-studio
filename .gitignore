@@ -12,6 +12,12 @@ htmlcov/
 # Env (use .env.example only)
 .env
 
+# Google Cloud credentials
+stitch-service-account.json
+*-service-account.json
+project-*.json
+secrets/
+
 # IDE
 .cursor/
 .vscode/

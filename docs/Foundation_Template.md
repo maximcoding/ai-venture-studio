@@ -9,6 +9,8 @@ All others are cloned into `/refs` as read-only donors.
 2) https://github.com/wassim249/fastapi-langgraph-agent-production-ready-template
 3) https://github.com/francescofano/langgraph-telegram-bot
 
+**Note:** `refs/` may also contain `react-native-cli-starter` for mobile generation (CliMobile / product_gen); it is not a Phase 5 base candidate.
+
 ---
 
 ## Our Non-Negotiables (must-have)
@@ -71,6 +73,7 @@ Refs are already cloned at:
 - refs/cursor-langgraph-starter
 - refs/fastapi-langgraph-agent-production-ready-template
 - refs/langgraph-telegram-bot
+- refs/react-native-cli-starter
 
 Rules:
 - `/refs` is read-only (no modifications)

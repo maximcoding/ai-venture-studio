@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="VcsDirectoryMappings">
+    <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/refs/cursor-langgraph-starter" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/refs/fastapi-langgraph-agent-production-ready-template" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/refs/langgraph-telegram-bot" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/refs/react-native-cli-starter" vcs="Git" />
+  </component>
+</project>

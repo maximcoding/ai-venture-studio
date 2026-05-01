@@ -1,5 +1,7 @@
 **документ v2.1**
 
+> **Note:** Phase index and navigation live in PHASES_INDEX.md; product goals are refined there (or in a future Product_Goals.md). This doc remains the reference PRD.
+
 ---
 
 # Autonomous AI Venture Studio — Cursor-First PRD (v2.1, English)

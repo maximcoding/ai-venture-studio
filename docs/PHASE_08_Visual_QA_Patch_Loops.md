@@ -1,48 +1,267 @@
-# docs/PHASE_08_Visual_QA_Patch_Loops.md
+# Phase 8 — Visual QA & Patch Loops (Web: Playwright, Mobile: Maestro)
 
-## Phase 8 — Visual QA & Patch Loops (OSS Harness Default)
+## Objective
+Prove UI fidelity against the approved design with an automated loop:
+evidence → Cursor patch → rerun → pass/waive.
 
-### Objective
-Achieve design fidelity: expected vs actual UI must match within approved thresholds.
+This phase is **surface-dependent**:
+- `web` → Playwright visual snapshots (URL-based).
+- `mobile` → Maestro flows + screenshots (device-based).
+- `api` / `automation` → Visual QA is **N/A** (skip with a recorded note).
 
-### Default Approach (No OpenClaw Required)
-Use deterministic OSS harnesses:
-- Web: Playwright visual snapshots
-- Mobile: Maestro flows (screenshots + reports)
+---
 
-### Evidence Pack Standard (Required for Every Visual Failure)
-Store in `artifacts/<thread_id>/visual-qa/<run-id>/`:
+## Inputs (Run Artifacts)
+Required:
+- `artifacts/<thread_id>/docs/Business_Logic.md` (must include `Delivery Surface`)
+- `artifacts/<thread_id>/docs/Design_Tokens.json` (if present)
+- `artifacts/<thread_id>/docs/Design_System.md` (if present)
+- `artifacts/<thread_id>/docs/MVP_Scope.md`
+- `artifacts/<thread_id>/docs/System_Architecture.md`
+
+Optional:
+- `artifacts/<thread_id>/docs/Prototype_Link.md` (baseline reference)
+- `artifacts/<thread_id>/docs/UI_Screens_List.md` (screens order, P0 first)
+
+Where `<thread_id>` = `user_<telegram_user_id>`.
+
+---
+
+## Primary Outputs (Run Artifacts)
+- `artifacts/<thread_id>/docs/QA_Report.md` (screen status + links + repro commands)
+- Evidence packs:
+  - `artifacts/<thread_id>/visual-qa/<run_id>/...`
+
+`<run_id>` is a timestamped folder (e.g. `2026-02-17T18-20-00Z`).
+
+---
+
+## Preconditions (Gate Into Phase 8)
+Phase 8 starts when:
+- ✅ Phase 7 produced a runnable UI slice for at least one P0 screen
+- ✅ Design is approved (Phase 3) OR CEO explicitly allows “baseline capture” now
+- ✅ Delivery Surface is resolved:
+  - `mobile` or `web` → proceed
+  - `api` or `automation` → skip
+
+---
+
+## Where Visual QA Runs (Important)
+### Web
+Runs **inside Docker** (repeatable, CI-friendly).
+- App must be reachable by Playwright via a stable URL inside the compose network.
+
+### Mobile (React Native)
+Runs **on a real device runtime**:
+- iOS Simulator (Mac) and/or Android Emulator (Mac/Linux)
+- This cannot be “just a URL”.
+- Docker may still host backend services, but the UI runner is host/CI-device level.
+
+---
+
+## Delivery Surface Routing (Hard Rule)
+Read `Delivery Surface.mode` from `Business_Logic.md`:
+
+- If `mode=web` → use **WEB TRACK**
+- If `mode=mobile` → use **MOBILE TRACK**
+- If `mode=auto` → resolve:
+  - if Phase 3 Stitch enabled for this run → treat as `web`
+  - else → treat as `api` (skip)
+- If `mode=api|automation` → Visual QA = **N/A** (write QA_Report.md with skip reason)
+
+No debates. Deterministic.
+
+---
+
+# WEB TRACK (Playwright)
+
+## What “open screen” means
+Open a URL route.
+Examples:
+- `http://app:3000/login`
+- `http://app:3000/dashboard`
+
+## Harness Requirements
+- Disable animations for stable snapshots.
+- Stable fonts (ship the font or use a deterministic default).
+- Seeded data for P0 screens (fixed user + fixtures).
+- Consistent viewport(s):
+  - mobile-like: 390x844
+  - desktop: 1440x900 (only if MVP needs desktop)
+
+## Evidence Pack Standard (per failing screen)
+Store under:
+`artifacts/<thread_id>/visual-qa/<run_id>/<screen_key>/`
+
+Files:
+- `expected.png`  (baseline)
+- `actual.png`    (current run)
+- `diff.png`      (generated)
+- `trace.zip`     (Playwright trace)
+- `meta.json`
+
+`meta.json` must include:
+- `surface: "web"`
+- `route`
+- `viewport`
+- `theme` (light/dark)
+- `commit_sha`
+- `tokens_version` (hash of Design_Tokens.json if present)
+
+## Baseline Strategy (Expected)
+Choose ONE per run (explicit in QA_Report):
+- A) **Approved Baseline**: expected comes from exported approved images (preferred)
+- B) **Capture Baseline**: first approved run becomes expected (allowed only if CEO confirms)
+
+## Repro Commands (must be in QA_Report.md)
+- `make boot`
+- `make vqa-web`
+- `make vqa-web TRACE=1` (if supported)
+
+---
+
+# MOBILE TRACK (React Native via Maestro)
+
+## What “open screen” means
+Open the app on a device runtime and navigate using:
+- UI actions (tap/type/scroll), and/or
+- deep links (optional, recommended later)
+
+There is no URL requirement.
+
+## Harness Requirements
+- One of:
+  - iOS Simulator available (Mac)
+  - Android Emulator available (Mac/Linux)
+- App build/install step exists (dev build is OK).
+- Deterministic UI settings:
+  - fixed locale/timezone if relevant
+  - disable random animations where possible
+
+## Maestro Flow Standard
+Store flows in repo:
+- `visual-qa/mobile/flows/`
+
+Each P0 screen must have a flow:
+- `login.yaml`
+- `onboarding.yaml`
+- `dashboard.yaml`
+… (P0 only first)
+
+Each flow must:
+- launch app
+- reach the target screen
+- take a screenshot with a deterministic name
+
+## Evidence Pack Standard (per failing screen)
+Store under:
+`artifacts/<thread_id>/visual-qa/<run_id>/<screen_key>/`
+
+Files:
 - `expected.png`
-- `actual.png`
-- `diff.png`
-- trace/report/logs
-- `meta.json` (route/screen, viewport/device, theme, commit hash)
-And update:
-- `artifacts/<thread_id>/docs/QA_Report.md` (screen → status → links to artifacts + repro command)
+- `actual.png`   (Maestro screenshot output)
+- `diff.png`     (generated by a diff step)
+- `maestro.log`
+- `meta.json`
 
-Where `<thread_id>` = LangGraph configurable thread_id (Telegram user/session identifier).
+`meta.json` must include:
+- `surface: "mobile"`
+- `platform: "ios" | "android"`
+- `device` (sim model)
+- `theme`
+- `commit_sha`
+- `tokens_version` (hash if present)
 
-### Cursor Patch Loop
-1) Run harness → produce evidence pack  
-2) Attach evidence pack to Cursor Chat/Agent  
-3) Cursor identifies mismatch → proposes patch  
-4) Apply patch → rerun harness  
-5) Repeat until pass / approved threshold
+## Diff Generation (Mobile)
+Phase 8 must produce `diff.png`.
+Implementation choice (factory standard):
+- ImageMagick OR pixelmatch-based script.
+Pick one and make it deterministic.
 
-### Design Tokens ↔ Code Compliance (Must Check)
-- Verify UI uses `Design_Tokens.json` consistently (colors/spacing/typography).
-- Cursor @Codebase / Review enforces token usage rules.
+## Repro Commands (must be in QA_Report.md)
+Examples (exact targets depend on repo):
+- `make boot` (backend, if needed)
+- `make vqa-mobile-ios`
+- `make vqa-mobile-android`
 
-### Optional: OpenClaw
-OpenClaw remains optional for exploratory clicking if deterministic harness is insufficient.
+---
 
-### DoD Checklist (Approval Gate)
-- [ ] `artifacts/<thread_id>/docs/QA_Report.md` exists with links to evidence packs
-- [ ] All MVP P0 screens pass visual checks (or approved exceptions)
-- [ ] Token compliance verified
-- [ ] Repro commands documented
+# Cursor Patch Loop (Both Tracks)
 
-### Telegram Completion Message (Template)
-- ✅ Artifacts: QA_Report.md + artifacts links
-- ✅ Validation: visual suite pass
-- Buttons: [✅ APPROVE UI] [🔁 REFINE UI] [🔙 GO BACK TO PHASE 3/7] [📄 VIEW QA REPORT]
+## Loop Steps
+1) Run harness → produce evidence packs
+2) Send to Cursor (evidence pack paths + failing screen keys)
+3) Cursor proposes patch (code + token compliance)
+4) Apply patch
+5) Rerun harness
+6) Repeat until:
+   - pass, OR
+   - CEO approves a waiver
+
+## Patch Constraints
+- Must respect `Design_Tokens.json` if present.
+- No “magic numbers” unless explicitly allowed:
+  - spacing, radius, typography must come from tokens/design system.
+- Any waiver must be recorded in QA_Report.md with rationale.
+
+---
+
+# Telegram Delivery (CEO Control Plane)
+
+## What CEO gets (per run)
+- A short summary message:
+  - pass count / fail count
+  - top failing screens
+  - 1-liner repro command
+- Buttons:
+  - ✅ APPROVE UI
+  - 🔁 REFINE UI
+  - 📄 VIEW QA REPORT
+  - 🔙 GO BACK (Phase 3 or 7)
+
+## What “VIEW QA REPORT” shows
+- Render QA_Report.md summary in chat (paged).
+- Also show quick links/paths to evidence packs.
+
+## What “REFINE UI” does
+- Bot asks for one message:
+  - “List screens + what to change (bullets).”
+- That message becomes an input to re-run Phase 8 patch loop.
+
+---
+
+# QA_Report.md (Required Format)
+
+## Header
+- Run ID
+- Surface (web/mobile)
+- Theme(s) tested
+- Baseline strategy (Approved / Captured)
+
+## Table
+For each P0 screen:
+
+| Screen | Status | Evidence Pack | Repro |
+|--------|--------|---------------|-------|
+
+Status values:
+- PASS
+- FAIL
+- WAIVED (with reason)
+
+---
+
+# DoD Checklist (Approval Gate)
+
+- [ ] Delivery Surface resolved and correct track executed
+- [ ] `artifacts/<thread_id>/docs/QA_Report.md` exists and is complete
+- [ ] For every FAIL: evidence pack contains expected/actual/diff + meta + logs/trace
+- [ ] All MVP P0 screens are PASS or explicitly WAIVED
+- [ ] Repro commands are documented and work
+
+---
+
+# Notes / Policy
+- Phase 8 is not “after everything”. It runs as soon as the first P0 screen exists.
+- For mobile, “Visual QA” is device-based by definition. No URL assumption.
+- OpenClaw stays optional. Default is deterministic harnesses (Playwright/Maestro).

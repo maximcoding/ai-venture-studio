@@ -1,4 +1,0 @@
-# Business Logic
-
-# Product Backlog
-Test backlog

@@ -15,8 +15,27 @@ LLM calls go to a **local Ollama** instance (default `llama3.1:8b`) — no OpenA
 ## 10-Phase Pipeline
 
 ```mermaid
-flowchart LR
-  P1[1 Vision] --> P2[2 Backlog] --> P3[3 UI/UX] --> P4[4 Architecture] --> P5[5 Init] --> P6[6 TDD] --> P7[7 Implementation] --> P8[8 Visual QA] --> P9[9 Guardrails] --> P10[10 DevOps]
+flowchart TD
+  P1[🔍 1 · Visionary & Business Audit]
+  P2[📋 2 · Product Management — Backlog & MVP]
+  P3[🎨 3 · UI/UX Design — Google Stitch]
+  P4[🏗️ 4 · System Architecture & HDL]
+  P5[⚙️ 5 · Project Initialization]
+  P6[🧪 6 · TDD]
+  P7[💻 7 · Implementation — Cursor Factory]
+  P8[🖼️ 8 · Visual QA & Patch Loops]
+  P9[🛡️ 9 · Guardrails — Sentinel & Vault]
+  P10[🚀 10 · DevOps, Growth & SRE]
+
+  P1 -->|✅ CEO Approve| P2
+  P2 -->|✅ CEO Approve| P3
+  P3 -->|✅ CEO Approve| P4
+  P4 -->|✅ CEO Approve| P5
+  P5 -->|✅ CEO Approve| P6
+  P6 -->|✅ CEO Approve| P7
+  P7 -->|✅ CEO Approve| P8
+  P8 -->|✅ CEO Approve| P9
+  P9 -->|✅ CEO Approve| P10
 ```
 
 | # | Phase | Key Output |

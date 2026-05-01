@@ -16,16 +16,16 @@ LLM calls go to a **local Ollama** instance (default `llama3.1:8b`) — no OpenA
 
 ```mermaid
 flowchart TD
-  P1[🔍 1 · Visionary & Business Audit]
-  P2[📋 2 · Product Management — Backlog & MVP]
-  P3[🎨 3 · UI/UX Design — Google Stitch]
-  P4[🏗️ 4 · System Architecture & HDL]
-  P5[⚙️ 5 · Project Initialization]
-  P6[🧪 6 · TDD]
-  P7[💻 7 · Implementation — Cursor Factory]
-  P8[🖼️ 8 · Visual QA & Patch Loops]
-  P9[🛡️ 9 · Guardrails — Sentinel & Vault]
-  P10[🚀 10 · DevOps, Growth & SRE]
+  P1["🔍 Phase 1 · Visionary & Business Audit\n👤 Steve Bobs — Visionary"]
+  P2["📋 Phase 2 · Product Management — Backlog & MVP\n👤 Smarty Vegan — Product Manager"]
+  P3["🎨 Phase 3 · UI/UX Design — Google Stitch\n👤 Johnny Vibe — Designer"]
+  P4["🏗️ Phase 4 · System Architecture & HDL\n👤 Linus Codevalds — Tech Lead"]
+  P5["⚙️ Phase 5 · Project Initialization\n👤 Dave Railsman — CTO"]
+  P6["🧪 Phase 6 · TDD\n👤 Kelly Cloudtower — QA"]
+  P7["💻 Phase 7 · Implementation — Cursor Factory\n👤 Kelly Cloudtower — DevOps"]
+  P8["🖼️ Phase 8 · Visual QA & Patch Loops\n👤 Bruce Securer — Security"]
+  P9["🛡️ Phase 9 · Guardrails — Sentinel & Vault\n👤 Andy Chain — Growth"]
+  P10["🚀 Phase 10 · DevOps, Growth & SRE\n👤 Andy Chain — SRE"]
 
   P1 -->|✅ CEO Approve| P2
   P2 -->|✅ CEO Approve| P3
@@ -38,18 +38,18 @@ flowchart TD
   P9 -->|✅ CEO Approve| P10
 ```
 
-| # | Phase | Key Output |
-|---|-------|------------|
-| 1 | Visionary & Business Audit | `Business_Logic.md`, USP, monetization, delivery surface |
-| 2 | Product Management (Backlog & MVP) | `Product_Backlog.md`, `MVP_Scope.md`, epics + acceptance criteria |
-| 3 | UI/UX Design (Google Stitch) | `Design_System.md`, `Design_Tokens.json`, prototype link + screenshots |
-| 4 | System Architecture & HDL | `System_Architecture.md`, `HDL_Business_Flows.md` |
-| 5 | Project Initialization | Repo scaffold, Docker Compose, CI baseline |
-| 6 | TDD | `Test_Report.md`, P0 test suite (`make test` passes) |
-| 7 | Implementation (Cursor Factory) | Working MVP features, Cursor Composer-driven multi-file changes |
-| 8 | Visual QA & Patch Loops | `QA_Report.md`, evidence packs (`expected/actual/diff.png`) |
-| 9 | Guardrails (Sentinel & Vault) | `Security_Policy.md`, `Budget_Guardrails.md`, secrets scan |
-| 10 | DevOps, Growth & SRE | `Operations_Runbook.md`, deploy configs, monitoring, launch checklist |
+| # | Persona | Phase | Key Output |
+|---|---------|-------|------------|
+| 1 | 👤 Steve Bobs — Visionary | Visionary & Business Audit | `Business_Logic.md`, USP, monetization, delivery surface |
+| 2 | 👤 Smarty Vegan — Product Manager | Product Management (Backlog & MVP) | `Product_Backlog.md`, `MVP_Scope.md`, epics + acceptance criteria |
+| 3 | 👤 Johnny Vibe — Designer | UI/UX Design (Google Stitch) | `Design_System.md`, `Design_Tokens.json`, prototype link + screenshots |
+| 4 | 👤 Linus Codevalds — Tech Lead | System Architecture & HDL | `System_Architecture.md`, `HDL_Business_Flows.md` |
+| 5 | 👤 Dave Railsman — CTO | Project Initialization | Repo scaffold, Docker Compose, CI baseline |
+| 6 | 👤 Kelly Cloudtower — QA | TDD | `Test_Report.md`, P0 test suite (`make test` passes) |
+| 7 | 👤 Kelly Cloudtower — DevOps | Implementation (Cursor Factory) | Working MVP features, Cursor Composer-driven multi-file changes |
+| 8 | 👤 Bruce Securer — Security | Visual QA & Patch Loops | `QA_Report.md`, evidence packs (`expected/actual/diff.png`) |
+| 9 | 👤 Andy Chain — Growth | Guardrails (Sentinel & Vault) | `Security_Policy.md`, `Budget_Guardrails.md`, secrets scan |
+| 10 | 👤 Andy Chain — SRE | DevOps, Growth & SRE | `Operations_Runbook.md`, deploy configs, monitoring, launch checklist |
 
 No phase advances without an explicit **[✅ APPROVE]** from the CEO in Telegram.
 
